@@ -22,6 +22,7 @@
 #include <optional>
 #include <unistd.h>
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
+#include <AggregateFunctions/KeAggregateBitmapFunctions.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
@@ -900,6 +901,7 @@ void registerAllFunctions()
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
+    registerKeAggregateFunctionsBitmap(agg_factory);
     DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
     registerAggregateFunctionDVRoaringBitmap(agg_factory);
 

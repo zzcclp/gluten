@@ -41,6 +41,7 @@ list(
   ch_contrib::cityhash
   ch_contrib::farmhash
   ch_contrib::xxHash
+  ch_contrib::roaring
   OpenSSL::SSL)
 
 if(TARGET ch_contrib::vectorscan)

@@ -20,6 +20,10 @@
 
 namespace local_engine
 {
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapOrCardinality, ke_bitmap_or_cardinality, ke_bitmap_or_cardinality)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapOrData, ke_bitmap_or_data, ke_bitmap_or_data)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapAndValue, ke_bitmap_and_value, ke_bitmap_and_value)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapAndIds, ke_bitmap_and_ids, ke_bitmap_and_ids)
 
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Sum, sum, sum)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Avg, avg, avg)
