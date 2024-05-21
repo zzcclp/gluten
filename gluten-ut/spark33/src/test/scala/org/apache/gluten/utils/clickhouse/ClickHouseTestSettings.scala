@@ -942,6 +942,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryCompilationErrorsSuite]
     .exclude("CANNOT_USE_MIXTURE: Using aggregate function with grouped aggregate pandas UDF")
     .exclude("UNSUPPORTED_FEATURE: Using pandas UDF aggregate expression with pivot")
+    .exclude("UNSUPPORTED_FEATURE: Using Python UDF with unsupported join condition")
   enableSuite[GlutenQueryExecutionErrorsSuite]
     .exclude(
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
@@ -1658,6 +1659,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
     .exclude("SPARK-34212 Parquet should read decimals correctly")
+    .exclude("SPARK-33449: simple select queries with file meta cache")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
     .exclude("Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
