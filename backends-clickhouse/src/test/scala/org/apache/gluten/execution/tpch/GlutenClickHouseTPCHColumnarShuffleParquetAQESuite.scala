@@ -354,4 +354,12 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuit
       df =>
     }
   }
+
+  test("test limit offset") {
+    val sql =
+      """
+        |select * from lineitem limit 100 offset 600500
+        |""".stripMargin
+    runQueryAndCompare(sql)(_ => {})
+  }
 }
