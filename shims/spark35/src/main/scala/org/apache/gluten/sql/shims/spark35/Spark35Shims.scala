@@ -18,7 +18,8 @@ package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
-
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.parquet.schema.MessageType
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
@@ -43,7 +44,7 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters, ParquetRowIndexUtil}
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -54,12 +55,8 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructTyp
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.parquet.schema.MessageType
-
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap}
-
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -77,7 +74,10 @@ class Spark35Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
+      Sig[RoundFloor](ExpressionNames.FLOOR),
+      Sig[RoundCeil](ExpressionNames.CEIL)
     )
   }
 
