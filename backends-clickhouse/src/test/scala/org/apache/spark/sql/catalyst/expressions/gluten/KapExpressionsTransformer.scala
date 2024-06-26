@@ -26,12 +26,44 @@ import org.apache.spark.sql.types.DataType
 
 import scala.collection.mutable.ListBuffer
 
+// scalastyle:off line.size.limit
 case class KapExpressionsTransformer() extends ExpressionExtensionTrait {
 
   /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   def expressionSigList: Seq[Sig] = Seq(
-    Sig[Sum0]("sum0")
+    Sig[Sum0]("sum0"),
+    Sig[KapSubtractMonths]("kap_month_between"),
+    Sig[YMDintBetween]("kap_ymd_int_between")
   )
+
+  override def replaceWithExtensionExpressionTransformer(
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = expr match {
+    case kapSubtractMonths: KapSubtractMonths =>
+      GenericExpressionTransformer(
+        "kap_months_between",
+        Seq(
+          ExpressionConverter.replaceWithExpressionTransformer(
+            kapSubtractMonths.right,
+            attributeSeq),
+          ExpressionConverter.replaceWithExpressionTransformer(kapSubtractMonths.left, attributeSeq)
+        ),
+        kapSubtractMonths
+      )
+    case kapYmdIntBetween: YMDintBetween =>
+      GenericExpressionTransformer(
+        "kap_ymd_int_between",
+        Seq(
+          ExpressionConverter.replaceWithExpressionTransformer(kapYmdIntBetween.left, attributeSeq),
+          ExpressionConverter.replaceWithExpressionTransformer(kapYmdIntBetween.right, attributeSeq)
+        ),
+        kapYmdIntBetween
+      )
+    case _ =>
+      throw new UnsupportedOperationException(
+        s"${expr.getClass} or $expr is not currently supported.")
+  }
 
   override def getAttrsIndexForExtensionAggregateExpr(
       aggregateFunc: AggregateFunction,
@@ -72,3 +104,4 @@ case class KapExpressionsTransformer() extends ExpressionExtensionTrait {
     (substraitAggFuncName, aggregateFunc.children.map(child => child.dataType))
   }
 }
+// scalastyle:on line.size.limit

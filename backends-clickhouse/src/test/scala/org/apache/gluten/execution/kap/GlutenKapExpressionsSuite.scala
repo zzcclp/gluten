@@ -22,12 +22,17 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
-import org.apache.spark.sql.catalyst.expressions.Sum0
+import org.apache.spark.sql.catalyst.expressions.{Expression, KapSubtractMonths, Sum0, YMDintBetween}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.types._
+
+import scala.reflect.ClassTag
 
 class GlutenKapExpressionsSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
+
+  protected val csvDataPath: String = resPath + "csv-data"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -48,12 +53,48 @@ class GlutenKapExpressionsSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // register the extension expressions
-    val (sum0Expr, sum0Builder) = FunctionRegistryBase.build[Sum0]("sum0", None)
+    createKylinTables()
+    registerSparkUdf[Sum0]("sum0")
+    registerSparkUdf[KapSubtractMonths]("kap_month_between")
+    registerSparkUdf[YMDintBetween]("_ymdint_between")
+  }
+
+  def createKylinTables(): Unit = {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("trans_id", LongType, nullable = true),
+        StructField.apply("order_id", LongType, nullable = true),
+        StructField.apply("cal_dt", DateType, nullable = true),
+        StructField.apply("lstg_format_name", StringType, nullable = true),
+        StructField.apply("leaf_categ_id", LongType, nullable = true),
+        StructField.apply("lstg_site_id", IntegerType, nullable = true),
+        StructField.apply("slr_segment_cd", ShortType, nullable = true),
+        StructField.apply("seller_id", IntegerType, nullable = true),
+        StructField.apply("price", DecimalType.apply(19, 4), nullable = true),
+        StructField.apply("item_count", IntegerType, nullable = true),
+        StructField.apply("test_count_distinct_bitmap", StringType, nullable = true),
+        StructField.apply("is_effectual", BooleanType, nullable = true)
+      ))
+
+    val df = spark.read
+      .option("delimiter", ",")
+      .option("quote", "\"")
+      .schema(schema)
+      .csv(csvDataPath + "/DEFAULT.TEST_KYLIN_FACT.csv")
+      .toDF()
+
+    df.createTempView("test_kylin_fact")
+  }
+
+  private def registerSparkUdf[T <: Expression: ClassTag](
+      name: String,
+      since: Option[String] = None
+  ): Unit = {
+    val (expr, builder) = FunctionRegistryBase.build[T](name, since)
     spark.sessionState.functionRegistry.registerFunction(
-      FunctionIdentifier.apply("sum0"),
-      sum0Expr,
-      sum0Builder
+      name = FunctionIdentifier.apply(name),
+      info = expr,
+      builder = builder
     )
   }
 
@@ -128,4 +169,152 @@ class GlutenKapExpressionsSuite
       compareResultsAgainstVanillaSpark(sql6, compareResult = true, _ => {})
     }
   }
+
+  test("test kap_month_between") {
+    val sql0 =
+      s"""
+         |select * from test_kylin_fact order by trans_id limit 10
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql0,
+      compareResult = true,
+      df => {
+        df.show(10)
+      })
+
+    // test kap_month_between with date before and after
+    val sql1 =
+      s"""
+         |select kap_month_between(date'2012-02-05', cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2014-03-31'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      compareResult = true,
+      df => {
+        assert(df.head().getInt(0) == 1)
+        assert(df.tail(1).apply(0).getInt(0) == -22)
+      })
+
+    // test kap_month_between with date null
+    val sql2 =
+      s"""
+         |select kap_month_between(null, cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2012-03-31'
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, compareResult = true, _ => {})
+
+    // test kap_month_between with date before 1970
+    val sql3 =
+      s"""
+         |select kap_month_between(date'1969-01-01', cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2013-03-31'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, compareResult = true, _ => {})
+
+    // test kap_month_between with timestamp
+    val sql4 =
+      s"""
+         |select kap_month_between(timestamp'2012-02-05 01:00:00', cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2014-04-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql4,
+      compareResult = true,
+      df => {
+        assert(df.head().getInt(0) == 1)
+        assert(df.tail(1).apply(0).getInt(0) == -22)
+      })
+
+    // test kap_month_between with reverse order
+    val sql5 =
+      s"""
+         |select kap_month_between(cal_dt, timestamp'2012-02-05 01:00:00') from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2014-04-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql5,
+      compareResult = true,
+      df => {
+        assert(df.head().getInt(0) == -1)
+        assert(df.tail(1).apply(0).getInt(0) == 22)
+      })
+
+  }
+
+  test("test _ymdint_between") {
+
+    // test _ymdint_between with date before and after
+    val sql1 =
+      s"""
+         |select _ymdint_between(date'2012-02-05', cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2012-03-31'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "00104")
+        assert(df.tail(1).apply(0).getString(0) == "00126")
+      })
+
+    // test _ymdint_between with date null
+    val sql2 =
+      s"""
+         |select _ymdint_between(null, cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2012-03-31'
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, compareResult = true, _ => {})
+
+    // test _ymdint_between with date before 1970
+    val sql3 =
+      s"""
+         |select _ymdint_between(date'1969-01-01', cal_dt) from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2012-03-31'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql3,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "430000")
+        assert(df.tail(1).apply(0).getString(0) == "430230")
+      })
+
+    // test _ymdint_between with timestamp
+    val sql4 =
+      s"""
+         |select cal_dt, _ymdint_between(cal_dt, timestamp'2012-02-05 01:00:00')
+         |from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2014-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql4,
+      compareResult = true,
+      df => {
+        assert(df.tail(1).apply(0).getString(1) == "11025")
+      })
+
+    // test _ymdint_between with reverse order
+    val sql5 =
+      s"""
+         |select cal_dt, _ymdint_between(timestamp'2012-02-05 01:00:00', cal_dt)
+         |from test_kylin_fact
+         |where cal_dt >= date'2012-01-01' and cal_dt <= date'2014-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql5,
+      compareResult = true,
+      df => {
+        assert(df.tail(1).apply(0).getString(1) == "11027")
+      })
+  }
+
 }

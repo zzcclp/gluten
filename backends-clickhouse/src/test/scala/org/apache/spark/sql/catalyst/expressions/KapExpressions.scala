@@ -18,9 +18,12 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
-import org.apache.spark.sql.catalyst.util.TypeUtils
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.util.{KapDateTimeUtils, TimeUtil, TypeUtils}
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 
+// scalastyle:off line.size.limit
 @ExpressionDescription(
   usage = "_FUNC_(expr) - Returns the sum calculated from values of a group. " +
     "It differs in that when no non null values are applied zero is returned instead of null")
@@ -85,3 +88,93 @@ case class Sum0(child: Expression) extends DeclarativeAggregate with ImplicitCas
   override protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
     super.legacyWithNewChildren(newChildren)
 }
+
+// Returns the date that is num_months after start_date.
+@ExpressionDescription(
+  usage = "_FUNC_(date0, date1) - Returns the num of months between `date0` after `date1`.",
+  extended = """
+    Examples:
+      > SELECT _FUNC_('2016-08-31', '2017-08-31');
+       12
+  """
+)
+case class KapSubtractMonths(a: Expression, b: Expression)
+  extends BinaryExpression
+  with ImplicitCastInputTypes {
+
+  override def left: Expression = a
+
+  override def right: Expression = b
+
+  override def inputTypes: Seq[AbstractDataType] = Seq(DateType, DateType)
+
+  override def dataType: DataType = IntegerType
+
+  override def nullSafeEval(date0: Any, date1: Any): Any = {
+    KapDateTimeUtils.dateSubtractMonths(date0.asInstanceOf[Int], date1.asInstanceOf[Int])
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val dtu = KapDateTimeUtils.getClass.getName.stripSuffix("$")
+    defineCodeGen(
+      ctx,
+      ev,
+      (d0, d1) => {
+        s"""$dtu.dateSubtractMonths($d0, $d1)"""
+      })
+  }
+
+  override def prettyName: String = "kap_months_between"
+
+  override protected def withNewChildrenInternal(
+      newLeft: Expression,
+      newRight: Expression): Expression = {
+    val newChildren = Seq(newLeft, newRight)
+    super.legacyWithNewChildren(newChildren)
+  }
+
+}
+
+case class YMDintBetween(first: Expression, second: Expression)
+  extends BinaryExpression
+  with ImplicitCastInputTypes {
+
+  override def left: Expression = first
+
+  override def right: Expression = second
+
+  override def dataType: DataType = StringType
+
+  override def inputTypes: Seq[AbstractDataType] = Seq(DateType, DateType)
+
+  override protected def nullSafeEval(input1: Any, input2: Any): Any = {
+    (first.dataType, second.dataType) match {
+      case (DateType, DateType) =>
+        UTF8String.fromString(
+          TimeUtil.ymdintBetween(
+            KapDateTimeUtils.daysToMillis(input1.asInstanceOf[Int]),
+            KapDateTimeUtils.daysToMillis(input2.asInstanceOf[Int])))
+    }
+  }
+
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val td = classOf[TimeUtil].getName
+    val dtu = KapDateTimeUtils.getClass.getName.stripSuffix("$")
+    defineCodeGen(
+      ctx,
+      ev,
+      (arg1, arg2) => {
+        s"""org.apache.spark.unsafe.types.UTF8String.fromString($td.ymdintBetween($dtu.daysToMillis($arg1),
+           |$dtu.daysToMillis($arg2)))""".stripMargin
+      }
+    )
+  }
+
+  override protected def withNewChildrenInternal(
+      newFirst: Expression,
+      newSecond: Expression): Expression = {
+    val newChildren = Seq(newFirst, newSecond)
+    super.legacyWithNewChildren(newChildren)
+  }
+}
+// scalastyle:on line.size.limit
