@@ -22,7 +22,7 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
-import org.apache.spark.sql.catalyst.expressions.{Expression, KapSubtractMonths, Sum0, YMDintBetween}
+import org.apache.spark.sql.catalyst.expressions.{Expression, KapSubtractMonths, KylinSplitPart, Sum0, YMDintBetween}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types._
 
@@ -57,6 +57,7 @@ class GlutenKapExpressionsSuite
     registerSparkUdf[Sum0]("sum0")
     registerSparkUdf[KapSubtractMonths]("kap_month_between")
     registerSparkUdf[YMDintBetween]("_ymdint_between")
+    registerSparkUdf[KylinSplitPart]("kylin_split_part")
   }
 
   def createKylinTables(): Unit = {
@@ -314,6 +315,106 @@ class GlutenKapExpressionsSuite
       compareResult = true,
       df => {
         assert(df.tail(1).apply(0).getString(1) == "11027")
+      })
+  }
+
+  test("test kylin_split_part") {
+    val sql0 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', 0)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql0,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == null)
+      })
+
+    val sql1 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', 1)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "2012")
+      })
+
+    val sql2 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', 2)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "01")
+      })
+
+    val sql3 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', 3)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql3,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "01")
+      })
+
+    val sql4 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', 4)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql4,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == null)
+      })
+
+    val sql5 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '-', -1)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql5,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "01")
+      })
+
+    val sql6 =
+      s"""
+         |select kylin_split_part(cast(cal_dt as string), '\\\\d{1,2}', -2)
+         |from test_kylin_fact
+         |where cal_dt <= date'2012-03-01'
+         |group by cal_dt order by cal_dt
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql6,
+      compareResult = true,
+      df => {
+        assert(df.head().getString(0) == "-")
       })
   }
 

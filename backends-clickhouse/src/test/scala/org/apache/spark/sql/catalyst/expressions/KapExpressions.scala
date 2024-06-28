@@ -177,4 +177,66 @@ case class YMDintBetween(first: Expression, second: Expression)
     super.legacyWithNewChildren(newChildren)
   }
 }
+
+case class KylinSplitPart(left: Expression, mid: Expression, right: Expression)
+  extends TernaryExpression
+  with ExpectsInputTypes {
+
+  override def dataType: DataType = left.dataType
+
+  override def nullable: Boolean = true
+
+  override def inputTypes: Seq[AbstractDataType] = Seq(StringType, StringType, IntegerType)
+
+  override def first: Expression = left
+
+  override def second: Expression = mid
+
+  override def third: Expression = right
+
+  override protected def nullSafeEval(input1: Any, input2: Any, input3: Any): Any = {
+    SplitPartImpl.evaluate(input1.toString, input2.toString, input3.asInstanceOf[Int])
+  }
+
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val ta = SplitPartImpl.getClass.getName.stripSuffix("$")
+    nullSafeCodeGen(
+      ctx,
+      ev,
+      (arg1, arg2, arg3) => {
+        s"""
+          org.apache.spark.unsafe.types.UTF8String result = $ta.evaluate($arg1.toString(), $arg2.toString(), $arg3);
+          if (result == null) {
+            ${ev.isNull} = true;
+          } else {
+            ${ev.value} = result;
+          }
+        """
+      }
+    )
+  }
+
+  override protected def withNewChildrenInternal(
+      newFirst: Expression,
+      newSecond: Expression,
+      newThird: Expression): Expression = {
+    val newChildren = Seq(newFirst, newSecond, newThird)
+    super.legacyWithNewChildren(newChildren)
+  }
+}
+
+object SplitPartImpl {
+
+  def evaluate(str: String, rex: String, index: Int): UTF8String = {
+    val parts = str.split(rex)
+    if (index - 1 < parts.length && index > 0) {
+      UTF8String.fromString(parts(index - 1))
+    } else if (index < 0 && Math.abs(index) <= parts.length) {
+      UTF8String.fromString(parts(parts.length + index))
+    } else {
+      null
+    }
+  }
+}
+
 // scalastyle:on line.size.limit

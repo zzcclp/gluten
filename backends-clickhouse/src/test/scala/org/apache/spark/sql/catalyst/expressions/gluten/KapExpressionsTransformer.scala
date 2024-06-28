@@ -17,7 +17,7 @@
 package org.apache.spark.sql.catalyst.expressions.gluten
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression._
+import org.apache.gluten.expression.{Sig, _}
 import org.apache.gluten.extension.ExpressionExtensionTrait
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -33,7 +33,8 @@ case class KapExpressionsTransformer() extends ExpressionExtensionTrait {
   def expressionSigList: Seq[Sig] = Seq(
     Sig[Sum0]("sum0"),
     Sig[KapSubtractMonths]("kap_month_between"),
-    Sig[YMDintBetween]("kap_ymd_int_between")
+    Sig[YMDintBetween]("kap_ymd_int_between"),
+    Sig[KylinSplitPart]("kylin_split_part")
   )
 
   override def replaceWithExtensionExpressionTransformer(
@@ -59,6 +60,16 @@ case class KapExpressionsTransformer() extends ExpressionExtensionTrait {
           ExpressionConverter.replaceWithExpressionTransformer(kapYmdIntBetween.right, attributeSeq)
         ),
         kapYmdIntBetween
+      )
+    case kylinSplitPart: KylinSplitPart if kylinSplitPart.second.isInstanceOf[Literal] =>
+      new GenericExpressionTransformer(
+        substraitExprName,
+        Seq(
+          ExpressionConverter.replaceWithExpressionTransformer(kylinSplitPart.first, attributeSeq),
+          LiteralTransformer(kylinSplitPart.second.asInstanceOf[Literal]),
+          ExpressionConverter.replaceWithExpressionTransformer(kylinSplitPart.third, attributeSeq)
+        ),
+        kylinSplitPart
       )
     case _ =>
       throw new UnsupportedOperationException(
