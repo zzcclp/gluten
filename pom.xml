@@ -230,8 +230,36 @@
             <artifactId>hadoop-client-runtime</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-annotation-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -268,6 +296,10 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
           </exclusion>
           <exclusion>
             <groupId>com.google.protobuf</groupId>
@@ -1188,12 +1220,12 @@
       </properties>
     </profile>
     <profile>
-      <id>spark-3.3</id>
+      <id>kyspark</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
         <spark.plain.version>33</spark.plain.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
-        <spark.version>3.3.1</spark.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-kyspark</sparkshim.artifactId>
+        <spark.version>3.3.0-kylin-5.2.9</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <iceberg.binary.version>5</iceberg.binary.version>
         <delta.package.name>delta-core</delta.package.name>

@@ -18,4 +18,6 @@ package org.apache.spark.sql.connector
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
+// Make scala compiler happy, kyspark misses this class.
+class MetadataColumnSuite extends DatasourceV2SQLBase {}
 class GlutenMetadataColumnSuite extends MetadataColumnSuite with GlutenSQLTestsBaseTrait {}

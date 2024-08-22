@@ -69,7 +69,7 @@
 
   <profiles>
     <profile>
-      <id>spark-3.3</id>
+      <id>kyspark</id>
       <modules>
         <module>spark33</module>
       </modules>

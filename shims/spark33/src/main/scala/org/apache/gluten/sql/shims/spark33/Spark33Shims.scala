@@ -91,7 +91,7 @@ class Spark33Shims extends SparkShims {
         f =>
           BucketingUtils
             .getBucketId(new Path(f.filePath).getName)
-            .getOrElse(throw invalidBucketFile(f.filePath))
+            .getOrElse(throw new IllegalStateException(s"Invalid bucket file ${f.filePath}"))
       }
   }
 
@@ -126,13 +126,6 @@ class Spark33Shims extends SparkShims {
       }
     }
     metadataColumn.toMap
-  }
-
-  private def invalidBucketFile(path: String): Throwable = {
-    new SparkException(
-      errorClass = "INVALID_BUCKET_FILE",
-      messageParameters = Array(path),
-      cause = null)
   }
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {

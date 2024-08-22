@@ -21,7 +21,6 @@ import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat => ParquetSource}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -495,7 +494,7 @@ abstract class AbstractFileSourceScanExec(
           f =>
             BucketingUtils
               .getBucketId(new Path(f.filePath).getName)
-              .getOrElse(throw QueryExecutionErrors.invalidBucketFile(f.filePath))
+              .getOrElse(throw new IllegalStateException(s"Invalid bucket file ${f.filePath}"))
         }
 
     val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
