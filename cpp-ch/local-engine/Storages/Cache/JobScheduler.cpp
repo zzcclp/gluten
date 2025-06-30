@@ -154,7 +154,7 @@ void JobScheduler::cleanFinishedJobs()
     for (auto it = finished_job.begin(); it != finished_job.end();)
     {
         // clean finished job after 5 minutes
-        if (it->second.elapsedSeconds() > 60 * 5)
+        if (it->second.elapsedSeconds() > 60 * 30)
         {
             cleanupJob(it->first);
             it = finished_job.erase(it);

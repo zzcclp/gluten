@@ -195,8 +195,9 @@ jobject CacheManager::getCacheStatus(JNIEnv * env, const String & jobId)
     }
     else
     {
-        status = 2;
-        message = fmt::format("job {} not found", jobId);
+        status = 1;
+        // message = fmt::format("job {} not found", jobId);
+        LOG_WARNING(getLogger("CacheManager"), "job {} not found, it may be already finished and removed", jobId);
     }
     return env->NewObject(cache_result_class, cache_result_constructor, status, charTojstring(env, message.c_str()));
 }
