@@ -131,7 +131,7 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
     }
   }
 
-  ignore("replace") {
+  test("replace") {
     val tableName = "replace_table"
     withTable(tableName) {
       sql(s"create table $tableName(src String, idx String, dest String) using parquet")
@@ -143,7 +143,10 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
              |  ('1', null, '2'),
              |  ('1', '1', '3'),
              |  (null, '1', '2'),
-             |  ('1', '', '3')
+             |  ('1', '', '3'),
+             |  ('varchar7', 'a', '3'),
+             |  ('varchar7', '', '3'),
+             |  ('', '', '3')
           """.stripMargin)
 
       val sql_str =
@@ -153,7 +156,11 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
            |    REPLACE(src, null, dest),
            |    REPLACE(null, null, dest),
            |    REPLACE(null, null, null),
-           |    REPLACE(src, '1', null)
+           |    REPLACE(src, '1', null),
+           |    REPLACE(src, idx, dest),
+           |    REPLACE(src, '', dest),
+           |    REPLACE(src, idx, '3'),
+           |    REPLACE(src, '', '3')
            |  from $tableName
       """.stripMargin
 

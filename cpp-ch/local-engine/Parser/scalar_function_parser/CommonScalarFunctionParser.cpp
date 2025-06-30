@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <Functions/SparkFunctionNextDay.h>
+#include <Functions/KySparkFunctionStringReplace.h>
 #include <Parser/FunctionParser.h>
 #include <Common/Exception.h>
 
@@ -114,7 +115,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(SubstringIndex, substring_index, substrin
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Lower, lower, lowerUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Upper, upper, upperUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Strpos, strpos, positionUTF8);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Replace, replace, replaceAll);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Replace, replace, kyReplaceAll);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpReplace, regexp_replace, replaceRegexpAll);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpExtractAll, regexp_extract_all, regexpExtractAllSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rlike, rlike, match);
