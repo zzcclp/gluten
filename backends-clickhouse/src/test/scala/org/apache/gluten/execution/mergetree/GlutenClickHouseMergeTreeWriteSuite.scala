@@ -1962,4 +1962,105 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
         })
     }
   }
+
+  test("test deltalog to ClickHouseTableV2 cache size") {
+    val executeCnt = 30
+    val sourceDF = spark.sql(s"""
+                                |select * from lineitem limit 100
+                                |""".stripMargin)
+
+    for (i <- 0 until executeCnt) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree$i;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree$i
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |TBLPROPERTIES (write.format.default = 'mergetree')
+                   |LOCATION '$basePath/lineitem_mergetree$i'
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree$i
+                   | select * from lineitem limit 100
+                   |""".stripMargin)
+    }
+
+    for (i <- 0 until executeCnt) {
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree$i
+                   | select * from lineitem limit 10
+                   |""".stripMargin)
+      spark
+        .sql(s"""
+                |select * from clickhouse.`$basePath/lineitem_mergetree$i` limit 10
+                |""".stripMargin)
+        .collect()
+    }
+
+    for (i <- 0 until executeCnt) {
+      val dataPath = s"$basePath/lineitem_filebased$i"
+      clearDataPath(dataPath)
+
+      spark.sql(s"""
+                   |CREATE TABLE clickhouse.`$dataPath` (
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |TBLPROPERTIES (orderByKey='l_returnflag,l_shipdate',
+                   |               primaryKey='l_returnflag',
+                   |               lowCardKey='l_returnflag,l_linestatus')
+                   |""".stripMargin)
+
+      sourceDF.write
+        .format("clickhouse")
+        .mode(SaveMode.Append)
+        .save(dataPath)
+    }
+    for (i <- 0 until executeCnt) {
+      val dataPath = s"$basePath/lineitem_filebased$i"
+      sourceDF.write
+        .format("clickhouse")
+        .mode(SaveMode.Append)
+        .save(dataPath)
+      spark.read
+        .format("clickhouse")
+        .load(dataPath)
+        .collect()
+    }
+  }
 }

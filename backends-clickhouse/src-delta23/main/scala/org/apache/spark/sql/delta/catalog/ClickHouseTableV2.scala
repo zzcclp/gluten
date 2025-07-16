@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta.catalog
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -34,6 +36,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
 
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause}
 import org.apache.hadoop.fs.Path
 
 import java.{util => ju}
@@ -124,14 +127,29 @@ class TempClickHouseTableV2(
 }
 
 object ClickHouseTableV2 extends Logging {
-  private val deltaLog2Table =
-    new scala.collection.concurrent.TrieMap[DeltaLog, ClickHouseTableV2]()
+
+  protected def sparkSession: SparkSession = SparkSession.active
+
+  private val deltaLog2Table: Cache[DeltaLog, ClickHouseTableV2] =
+    Caffeine.newBuilder
+      .maximumSize(
+        sparkSession.conf
+          .get(CHBackendSettings.GLUTEN_CLICKHOUSE_DELTALOG_TO_TABLEV2_CACHE_SIZE, "10000")
+          .toLong)
+      .removalListener(
+        (deltalog: DeltaLog, table: ClickHouseTableV2, cause: RemovalCause) => {
+          logDebug(s"Remove the deltalog ${deltalog.dataPath} cache")
+        })
+      .recordStats
+      .build[DeltaLog, ClickHouseTableV2]()
+
   // for CTAS use
   val temporalThreadLocalCHTable = new ThreadLocal[ClickHouseTableV2]()
 
   def getTable(deltaLog: DeltaLog): ClickHouseTableV2 = {
-    if (deltaLog2Table.contains(deltaLog)) {
-      deltaLog2Table(deltaLog)
+    val res = deltaLog2Table.getIfPresent(deltaLog)
+    if (res != null) {
+      res
     } else if (temporalThreadLocalCHTable.get() != null) {
       temporalThreadLocalCHTable.get()
     } else {
@@ -141,7 +159,7 @@ object ClickHouseTableV2 extends Logging {
   }
 
   def clearCache(): Unit = {
-    deltaLog2Table.clear()
+    deltaLog2Table.invalidateAll()
     temporalThreadLocalCHTable.remove()
   }
 

@@ -151,6 +151,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConfig.prefixOf("addfiles.to.mtps.cache.size")
   val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
     CHConfig.prefixOf("table.path.to.mtps.cache.size")
+  val GLUTEN_CLICKHOUSE_DELTALOG_TO_TABLEV2_CACHE_SIZE: String =
+    CHConfig.prefixOf("deltalog.to.tablev2.cache.size")
 
   val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE: String =
     CHConfig.prefixOf("delta.metadata.optimize")
