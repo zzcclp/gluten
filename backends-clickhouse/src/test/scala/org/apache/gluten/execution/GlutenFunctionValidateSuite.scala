@@ -580,9 +580,26 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast('7.921901' as float), cast('7.921901' as double)"
-      )(checkGlutenPlan[ProjectExecTransformer])
+        """
+          |select cast(concat(cast(id as string), '.921901') as float),
+          |cast(concat(cast(id+1 as string), '.931901') as double)
+          |from range(10)
+          |""".stripMargin
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
+  }
+
+  test("using roundHalfUp first when cast string to decimal") {
+    runQueryAndCompare(
+      """
+        |select -(cast(id as double)) as n,
+        |cast(concat('2.', cast(id as string), '921901') as NUMERIC) as a,
+        |cast(concat('2.921', cast(id+1 as string), '931') as DECIMAL(10, 3)) as b
+        |from range(10)
+        |group by n, a, b
+        |order by 1
+        |""".stripMargin
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test round issue: https://github.com/oap-project/gluten/issues/3462") {

@@ -338,9 +338,15 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 int scale = substrait_type.decimal().scale();
                 if (precision)
                 {
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
-                    result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+                    // using roundHalfUp
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt64>(), scale));
+                    const ActionsDAG::Node * round_node = toFunctionNode(actions_dag, "roundHalfUp", args);
+
+                    ActionsDAG::NodeRawConstPtrs check_decimal_args;
+                    check_decimal_args.emplace_back(round_node);
+                    check_decimal_args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
+                    check_decimal_args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
+                    result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", check_decimal_args);
                 }
             }
             else if ((isMap(denull_input_type) || isArray(denull_input_type) || isTuple(denull_input_type)) && isString(denull_output_type))
@@ -362,6 +368,34 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 result_node = toFunctionNode(actions_dag, "CAST", args);
+            }
+            else if (isString(denull_input_type) && isDecimal(denull_output_type))
+            {
+                int precision = substrait_type.decimal().precision();
+                if (precision < 16)
+                {
+                    // first, covert string to float64
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), "Float64"));
+                    const ActionsDAG::Node * first_cast_node = toFunctionNode(actions_dag, "CAST", args);
+
+                    // using roundHalfUp
+                    int scale = substrait_type.decimal().scale();
+                    ActionsDAG::NodeRawConstPtrs round_args;
+                    round_args.emplace_back(first_cast_node);
+                    round_args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt64>(), scale));
+                    const ActionsDAG::Node * round_node = toFunctionNode(actions_dag, "roundHalfUp", round_args);
+
+                    // finally cast
+                    ActionsDAG::NodeRawConstPtrs last_cast_args;
+                    last_cast_args.emplace_back(round_node);
+                    last_cast_args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                    result_node = toFunctionNode(actions_dag, "CAST", last_cast_args);
+                }
+                else
+                {
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                    result_node = toFunctionNode(actions_dag, "CAST", args);
+                }
             }
             else
             {
