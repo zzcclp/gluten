@@ -351,15 +351,24 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
         {
+            UInt32 precision = getDecimalPrecision(*result_type);
+            UInt32 scale = getDecimalScale(*result_type);
+            // First add the scale and then roundHalfUp to the right scale
+            DataTypePtr new_result_type = createDecimal<DataTypeDecimal>(precision, scale + 1);
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
-                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+                new_result_type->createColumnConstWithDefaultValue(1), new_result_type, getUniqueName(new_result_type->getName())));
 
             const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalDivideEffect"
                 : "sparkDecimalDivide";
-            ;
-            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+
+            const ActionsDAG::Node * div_node = toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+
+            ActionsDAG::NodeRawConstPtrs round_args;
+            round_args.emplace_back(div_node);
+            round_args.emplace_back(expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt64>(), scale));
+            return toFunctionNode(actions_dag, "roundHalfUp", round_args);
         }
 
         return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});

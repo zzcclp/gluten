@@ -574,7 +574,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast from struct III")
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("- (UnaryMinus)")
-    .exclude("/ (Divide) basic")
     .exclude("/ (Divide) for Long and Decimal type")
     .exclude("% (Remainder)")
     .exclude("SPARK-17617: % (Remainder) double % double on super big double")

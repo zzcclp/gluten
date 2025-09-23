@@ -1543,4 +1543,62 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("match the vanilla spark behavior for the divide") {
+    val table_create_sql =
+      """
+        | create table test_tbl_divide (
+        | d1 decimal(12, 2),
+        | d2 decimal(15, 3),
+        | d3 double,
+        | d4 int
+        | ) using parquet;
+        |""".stripMargin
+    val data_insert_sql =
+      """
+        |insert into test_tbl_divide values
+        |(13.13, 0, 3.5, 7),
+        |(4.0, NULL, 3.7, 6),
+        |(12.3, 7, 11.11, 22)
+        |""".stripMargin
+    spark.sql(table_create_sql)
+    spark.sql(data_insert_sql)
+    Seq("true", "false").foreach {
+      s =>
+        withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, s)) {
+          val select_sql =
+            """
+              |select d1 / d2,
+              |d1 / 0,
+              |d1 / cast(0 as decimal),
+              |d3 / d4,
+              |d1 / d3,
+              |d3 / d1,
+              |d1 / d4,
+              |d4 / d1,
+              |d1 / 24.0,
+              |d3 / 24.0,
+              |d4 / 24.0
+              |from test_tbl_divide
+              |order by 10""".stripMargin
+          compareResultsAgainstVanillaSpark(
+            select_sql,
+            true,
+            {
+              df =>
+                {
+                  val res = df.collect()
+                  assertResult("1.8757142857143")(res(0)(6).toString)
+                  assertResult("0.291667")(res(0)(10).toString)
+                  assertResult("0.6666666666667")(res(1)(6).toString)
+                  assertResult("0.166667")(res(1)(8).toString)
+                  assertResult("1.757142857142857143")(res(2)(0).toString)
+                  assertResult("1.7886178861789")(res(2)(7).toString)
+                  assertResult("0.916667")(res(2)(10).toString)
+                }
+            }
+          )
+        }
+    }
+    spark.sql("drop table test_tbl_divide")
+  }
 }
