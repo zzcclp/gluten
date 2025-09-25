@@ -62,8 +62,8 @@ public:
     DataTypePtr createResultType(const DataTypes & argument_types_, UInt32 num_scale_, UInt32 /*round_scale_*/)
     {
         const DataTypePtr & data_type = argument_types_[0];
-        const UInt32 precision_value = std::min<size_t>(getDecimalPrecision(*data_type) + 4, DecimalUtils::max_precision<Decimal128>);
-        const auto scale_value = std::min(num_scale_ + 4, precision_value);
+        const UInt32 precision_value = std::min<size_t>(getDecimalPrecision(*data_type) + 5, DecimalUtils::max_precision<Decimal128>);
+        const auto scale_value = std::min(num_scale_ + 5, precision_value);
         return createDecimal<DataTypeDecimal>(precision_value, scale_value);
     }
 

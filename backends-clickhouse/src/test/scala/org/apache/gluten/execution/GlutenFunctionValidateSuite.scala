@@ -1601,4 +1601,46 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
     spark.sql("drop table test_tbl_divide")
   }
+
+  test("match the vanilla spark behavior for the avg rollHaflUp") {
+    val table_create_sql =
+      """
+        | create table test_tbl_avg (
+        | d1 decimal(12, 2),
+        | d2 decimal(15, 3),
+        | d3 double,
+        | d4 int
+        | ) using parquet;
+        |""".stripMargin
+    val data_insert_sql =
+      """
+        |insert into test_tbl_avg values
+        |(13.13, 0, 3.5, 7),
+        |(4.0, NULL, 3.7, 6),
+        |(62.3, 7, 11.11, 22)
+        |""".stripMargin
+    spark.sql(table_create_sql)
+    spark.sql(data_insert_sql)
+    Seq("true", "false").foreach {
+      s =>
+        withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, s)) {
+          val select_sql =
+            """
+              |select avg(d1), avg(d2), avg(d3), avg(d4)
+              |from test_tbl_avg""".stripMargin
+          compareResultsAgainstVanillaSpark(
+            select_sql,
+            true,
+            {
+              df =>
+                {
+                  val res = df.collect()
+                  assertResult("26.476667")(res(0)(0).toString)
+                }
+            }
+          )
+        }
+    }
+    spark.sql("drop table test_tbl_avg")
+  }
 }

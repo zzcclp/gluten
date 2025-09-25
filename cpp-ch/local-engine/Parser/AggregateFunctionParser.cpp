@@ -194,6 +194,16 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
 {
     const auto & output_type = func_info.output_type;
     bool need_convert_type = !TypeParser::isTypeMatched(output_type, func_node->result_type, !with_nullability);
+    if (getCHFunctionName(func_info) == "avg" && output_type.has_decimal())
+    {
+        int scale = output_type.decimal().scale();
+        ActionsDAG::NodeRawConstPtrs args;
+        args.emplace_back(func_node);
+        // using roundHalfUp
+        args.emplace_back(expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt64>(), scale));
+        func_node = toFunctionNode(actions_dag, "roundHalfUp", func_node->result_name, args);
+        actions_dag.addOrReplaceInOutputs(*func_node);
+    }
     if (need_convert_type)
     {
         func_node = ActionsDAGUtil::convertNodeType(actions_dag, func_node, TypeParser::parseType(output_type), getContext(), func_node->result_name);
