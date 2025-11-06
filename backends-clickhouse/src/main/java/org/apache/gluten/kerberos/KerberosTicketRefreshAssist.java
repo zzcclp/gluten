@@ -38,8 +38,11 @@ public class KerberosTicketRefreshAssist {
   private static final String KERBEROS_CACHE_KEY =
       BACKEND_CONFIG_KEY + "hdfs.hadoop_security_kerberos_ticket_cache_path";
   private static final String USE_KERBEROS_VALUE = "kerberos";
-  private static final String PRINCIPAL_KEY = "spark.kerberos.principal";
-  private static final String KEYTAB_KEY = "spark.kerberos.keytab";
+  private static final String SPARK_PRINCIPAL_KEY = "spark.kerberos.principal";
+  private static final String SPARK_KEYTAB_KEY = "spark.kerberos.keytab";
+  private static final String PRINCIPAL_KEY = BACKEND_CONFIG_KEY + "kerberos.principal";
+  private static final String KEYTAB_KEY = BACKEND_CONFIG_KEY + "kerberos.keytab";
+  private static final String KRB5_CONF_KEY = BACKEND_CONFIG_KEY + "kerberos.krb5.file";
   private static final String RELOGIN_INTERVAL_KEY = "spark.kerberos.relogin.period";
   private static final String RELOGIN_INTERVAL_DEFAULT = "120m";
   private static final String CACHE_NAME = "krb5cc_gluten";
@@ -55,28 +58,48 @@ public class KerberosTicketRefreshAssist {
   public static void initKerberosIfNeeded(SparkConf sparkConf) {
     if (!sparkConf.contains(USE_KERBEROS_KEY)
         || !sparkConf.get(USE_KERBEROS_KEY).equals(USE_KERBEROS_VALUE)) {
-      LOG.debug("Kerberos is not enabled, skip initialization");
+      LOG.info("Kerberos is not enabled, skip initialization");
       return;
     }
     if (!sparkConf.contains(PRINCIPAL_KEY) || !sparkConf.contains(KEYTAB_KEY)) {
-      LOG.error("Kerberos enabled, but principal or keytab is not set");
-      return;
+      if ("cluster".equals(sparkConf.get("spark.submit.deployMode", "client"))) {
+        LOG.error("Kerberos enabled with the cluster mode, but principal or keytab is not set");
+        return;
+      }
+      if (!sparkConf.contains(SPARK_PRINCIPAL_KEY) || !sparkConf.contains(SPARK_KEYTAB_KEY)) {
+        LOG.error("Kerberos enabled, but principal or keytab is not set");
+        return;
+      }
     }
     String workingDir = System.getProperty("user.dir");
-    String principal = sparkConf.get(PRINCIPAL_KEY);
-    String keytab = sparkConf.get(KEYTAB_KEY);
+    String principal = sparkConf.get(PRINCIPAL_KEY, sparkConf.get(SPARK_PRINCIPAL_KEY));
+    String keytab = sparkConf.get(KEYTAB_KEY, sparkConf.get(SPARK_KEYTAB_KEY));
     String keytabName = new File(keytab).getName();
     String keytabPath = workingDir + "/" + keytabName;
     if (!new File(keytabPath).exists()) {
-      LOG.warn("keytab file not exists in working dir, try to use spark.kerberos.keytab");
+      LOG.warn(
+          "keytab file "
+              + keytabPath
+              + " not exists in working dir, try to use spark.kerberos.keytab");
       keytabPath = keytab;
     }
 
     String cachePath = workingDir + "/" + CACHE_NAME;
-    String krb5ConfPath = workingDir + "/" + KRB5_CONF_NAME;
-    if (!new File(krb5ConfPath).exists()) {
-      LOG.warn("krb5 conf file not exists in working dir, try to use system krb5 conf");
-      krb5ConfPath = null;
+    String krb5ConfPath = null;
+    if (sparkConf.contains(KRB5_CONF_KEY)) {
+      String krb5Conf = sparkConf.get(KRB5_CONF_KEY);
+      String krb5ConfName = new File(krb5Conf).getName();
+      krb5ConfPath = workingDir + "/" + krb5ConfName;
+      if (!new File(krb5ConfPath).exists()) {
+        LOG.warn("krb5 conf file not exists in working dir, try to use config krb5 conf");
+        krb5ConfPath = krb5Conf;
+      }
+    } else {
+      krb5ConfPath = workingDir + "/" + KRB5_CONF_NAME;
+      if (!new File(krb5ConfPath).exists()) {
+        LOG.warn("krb5 conf file not exists in working dir, try to use system krb5 conf");
+        krb5ConfPath = null;
+      }
     }
 
     KerberosInit kerberosInit;
