@@ -198,6 +198,10 @@
           <groupId>jdk.tools</groupId>
           <artifactId>jdk.tools</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>libthrift</artifactId>
+          <groupId>org.apache.thrift</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -246,6 +250,18 @@
       <artifactId>minio</artifactId>
       <version>8.6.0</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <scope>test</scope>
+      <version>0.14.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
