@@ -1996,7 +1996,7 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
                    |)
                    |USING clickhouse
                    |TBLPROPERTIES (write.format.default = 'mergetree')
-                   |LOCATION '$basePath/lineitem_mergetree$i'
+                   |LOCATION '$dataHome/lineitem_mergetree$i'
                    |""".stripMargin)
 
       spark.sql(s"""
@@ -2012,13 +2012,13 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
                    |""".stripMargin)
       spark
         .sql(s"""
-                |select * from clickhouse.`$basePath/lineitem_mergetree$i` limit 10
+                |select * from clickhouse.`$dataHome/lineitem_mergetree$i` limit 10
                 |""".stripMargin)
         .collect()
     }
 
     for (i <- 0 until executeCnt) {
-      val dataPath = s"$basePath/lineitem_filebased$i"
+      val dataPath = s"$dataHome/lineitem_filebased$i"
       clearDataPath(dataPath)
 
       spark.sql(s"""
@@ -2052,7 +2052,7 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
         .save(dataPath)
     }
     for (i <- 0 until executeCnt) {
-      val dataPath = s"$basePath/lineitem_filebased$i"
+      val dataPath = s"$dataHome/lineitem_filebased$i"
       sourceDF.write
         .format("clickhouse")
         .mode(SaveMode.Append)

@@ -160,6 +160,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixMillis, unix_millis, toUnixTimestamp6
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixMicros, unix_micros, toUnixTimestamp64Micro);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(TimestampMillis, timestamp_millis, fromUnixTimestamp64Milli);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(TimestampMicros, timestamp_micros, fromUnixTimestamp64Micro);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(TimestampDiff, timestampdiff, dateDiff);
 
 // array functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Array, array, array);

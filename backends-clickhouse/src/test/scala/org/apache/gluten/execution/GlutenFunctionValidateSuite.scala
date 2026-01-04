@@ -32,7 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.nio.file.Files
-import java.sql.Date
+import java.sql.{Date, Timestamp}
 
 import scala.reflect.ClassTag
 
@@ -585,7 +585,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           |cast(concat(cast(id+1 as string), '.931901') as double)
           |from range(10)
           |""".stripMargin
-      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenPlan[ProjectExecTransformer])
     }
   }
 
@@ -599,7 +599,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         |group by n, a, b
         |order by 1
         |""".stripMargin
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test round issue: https://github.com/oap-project/gluten/issues/3462") {
@@ -1642,5 +1642,35 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         }
     }
     spark.sql("drop table test_tbl_avg")
+  }
+
+  testWithMinSparkVersion("timestampdiff", "3.3") {
+    withTempPath {
+      path =>
+        import testImplicits._
+        val t1 = Timestamp.valueOf("2020-03-08 00:00:00.000")
+        val t2 = Timestamp.valueOf("2020-08-29 00:00:00.500")
+        Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
+
+        // There is an issue with the vanilla spark:
+        // timestampdiff(SECOND, timestamp '2020-03-08 00:00:00', timestamp '2025-03-09 01:59:59')
+        // return 157859999, but:
+        // timestampdiff(SECOND, timestamp '2020-03-08 00:00:00', timestamp '2025-03-09 02:00:00')
+        // return 157863600, not the 157860000.
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("""
+                             |select
+                             |timestampdiff(DAY, t1, timestamp '2025-08-05 00:00:00.500'),
+                             |timestampdiff(HOUR, t1, timestamp '2025-03-05 13:24:00.500'),
+                             |timestampdiff(MINUTE, t1, timestamp '2025-12-05 00:58:00.500'),
+                             |timestampdiff(SECOND, t1, timestamp '2025-03-09 01:59:59.000'),
+                             |timestampdiff(DAY, t2, timestamp '2025-07-05 00:00:00.500'),
+                             |timestampdiff(HOUR, t2, timestamp '2025-03-31 09:00:00.500'),
+                             |timestampdiff(MINUTE, t2, timestamp '2025-03-31 00:25:00.500'),
+                             |timestampdiff(SECOND, t2, timestamp '2025-06-05 00:23:57.500')
+                             |from time""".stripMargin) {
+          df => checkGlutenPlan[ProjectExecTransformer](_)
+        }
+    }
   }
 }

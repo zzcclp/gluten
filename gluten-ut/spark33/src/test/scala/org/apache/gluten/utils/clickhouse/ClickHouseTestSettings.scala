@@ -754,7 +754,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34761,SPARK-35889: add a day-time interval to a timestamp")
     .exclude("SPARK-37552: convert a timestamp_ntz to another time zone")
     .exclude("SPARK-38195: add a quantity of interval units to a timestamp")
-    .exclude("SPARK-38284: difference between two timestamps in units")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
     .excludeGlutenTest("Hour")
