@@ -134,19 +134,19 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
   test("replace") {
     val tableName = "replace_table"
     withTable(tableName) {
-      sql(s"create table $tableName(src String, idx String, dest String) using parquet")
+      sql(s"create table $tableName(src String, idx String, dest String, ord Int) using parquet")
       sql(s"""
              |insert into $tableName values
-             |  (null, null, null),
-             |  ('1', '1', null),
-             |  ('1', '1', '2'),
-             |  ('1', null, '2'),
-             |  ('1', '1', '3'),
-             |  (null, '1', '2'),
-             |  ('1', '', '3'),
-             |  ('varchar7', 'a', '3'),
-             |  ('varchar7', '', '3'),
-             |  ('', '', '3')
+             |  (null, null, null, 1),
+             |  ('1', '1', null, 2),
+             |  ('1', '1', '2', 3),
+             |  ('1', null, '2', 4),
+             |  ('1', '1', '3', 5),
+             |  (null, '1', '2', 6),
+             |  ('1', '', '3', 7),
+             |  ('varchar7', 'a', '3', 8),
+             |  ('varchar7', '', '3', 9),
+             |  ('', '', '3', 10)
           """.stripMargin)
 
       val sql_str =
@@ -160,8 +160,12 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
            |    REPLACE(src, idx, dest),
            |    REPLACE(src, '', dest),
            |    REPLACE(src, idx, '3'),
-           |    REPLACE(src, '', '3')
+           |    REPLACE(src, '', '3'),
+           |    REPLACE(REPLACE(src, '', dest), '', dest),
+           |    REPLACE(REPLACE(src, idx, '3'), idx, '3'),
+           |    REPLACE(REPLACE(src, '', '3'), '', '3')
            |  from $tableName
+           |  order by ord
       """.stripMargin
 
       runQueryAndCompare(sql_str) { _ => }
