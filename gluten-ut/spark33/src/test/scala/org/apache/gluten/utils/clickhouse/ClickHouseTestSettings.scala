@@ -148,8 +148,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("should move field up one level of nesting")
     .exclude("SPARK-36778: add ilike API for scala")
   enableSuite[GlutenComplexTypesSuite]
-  enableSuite[GlutenConfigBehaviorSuite].exclude(
-    "SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+  enableSuite[GlutenConfigBehaviorSuite]
+    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    // Gluten columnar operator will have different number of jobs
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
