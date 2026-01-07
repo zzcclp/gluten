@@ -37,7 +37,7 @@
       <groupId>org.apache.gluten</groupId>
       <artifactId>${sparkshim.artifactId}</artifactId>
       <version>${project.version}</version>
-      <scope>compile</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
