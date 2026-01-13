@@ -41,28 +41,69 @@ struct PositionSparkImpl
     static constexpr bool supports_start_pos = true;
     static constexpr auto name = Name::name;
 
-    static ColumnNumbers getArgumentsThatAreAlwaysConstant() { return {}; }
+    static ColumnNumbers getArgumentsThatAreAlwaysConstant() { return {};}
 
     using ResultType = UInt64;
 
     /// Find one substring in many strings.
     static void vectorConstant(
-        const ColumnString::Chars & data,
-        const ColumnString::Offsets & offsets,
+        const ColumnString::Chars & haystack_data,
+        const ColumnString::Offsets & haystack_offsets,
         const std::string & needle,
         const ColumnPtr & start_pos,
         PaddedPODArray<UInt64> & res,
         [[maybe_unused]] ColumnUInt8 * res_null,
-        [[maybe_unused]] size_t input_rows_count)
+        size_t input_rows_count)
     {
         /// `res_null` serves as an output parameter for implementing an XYZOrNull variant.
         assert(!res_null);
 
-        const UInt8 * begin = data.data();
+        const UInt8 * const begin = haystack_data.data();
+        const UInt8 * const end = haystack_data.data() + haystack_data.size();
         const UInt8 * pos = begin;
-        const UInt8 * end = pos + data.size();
+        const ColumnConst * start_pos_const = typeid_cast<const ColumnConst *>(&*start_pos);
 
-        /// Current index in the array of strings.
+        /// Match the spark behavior: always return 0
+        if (start_pos_const && start_pos_const->getUInt(0) < 1)
+        {
+            for (auto & r : res)
+                r = 0;
+            return;
+        }
+
+        /// Fast path when needle is empty
+        if (needle.empty())
+        {
+            /// Needle is empty and start_pos doesn't exist --> always return 1
+            if (start_pos == nullptr)
+            {
+                /// Match the spark behavior: always return 0
+                for (auto & r : res)
+                    r = 0;
+                return;
+            }
+
+            ColumnString::Offset prev_offset = 0;
+
+            /// Match the spark behavior: always return 1
+            if (start_pos_const && start_pos_const->getUInt(0) > 0)
+            {
+                for (auto & r : res)
+                    r = 1;
+                return;
+            }
+
+            /// Needle is empty and start_pos is not constant
+            for (size_t i = 0; i < input_rows_count; ++i)
+            {
+                UInt64 start = start_pos->getUInt(i);
+                if (start < 1) res[i] = 0;
+                else res[i] = 1;
+            }
+            return;
+        }
+
+        /// Current index in the column of strings.
         size_t i = 0;
 
         typename Impl::SearcherInBigHaystack searcher = Impl::createSearcherInBigHaystack(needle.data(), needle.size(), end - pos);
@@ -71,7 +112,7 @@ struct PositionSparkImpl
         while (pos < end && end != (pos = searcher.search(pos, end - pos)))
         {
             /// Determine which index it refers to.
-            while (begin + offsets[i] <= pos)
+            while (begin + haystack_offsets[i] <= pos)
             {
                 res[i] = 0;
                 ++i;
@@ -79,25 +120,24 @@ struct PositionSparkImpl
             auto start = start_pos != nullptr ? start_pos->getUInt(i) : 0;
 
             /// We check that the entry does not pass through the boundaries of strings.
-            // The result is 0 if start_pos is 0, in compliance with Spark semantics
-            if (start != 0 && pos + needle.size() < begin + offsets[i])
+            if (pos + needle.size() <= begin + haystack_offsets[i])
             {
-                auto res_pos
-                    = 1 + Impl::countChars(reinterpret_cast<const char *>(begin + offsets[i - 1]), reinterpret_cast<const char *>(pos));
+                auto res_pos = 1 + Impl::countChars(reinterpret_cast<const char *>(begin + haystack_offsets[i - 1]), reinterpret_cast<const char *>(pos));
                 if (res_pos < start)
                 {
                     pos = reinterpret_cast<const UInt8 *>(Impl::advancePos(
-                        reinterpret_cast<const char *>(pos), reinterpret_cast<const char *>(begin + offsets[i]), start - res_pos));
+                        reinterpret_cast<const char *>(pos),
+                        reinterpret_cast<const char *>(begin + haystack_offsets[i]),
+                        start - res_pos));
                     continue;
                 }
-                // The result is 1 if needle is empty, in compliance with Spark semantics
-                res[i] = needle.empty() ? 1 : res_pos;
+                res[i] = res_pos;
             }
             else
             {
                 res[i] = 0;
             }
-            pos = begin + offsets[i];
+            pos = begin + haystack_offsets[i];
             ++i;
         }
 
@@ -106,9 +146,29 @@ struct PositionSparkImpl
     }
 
     /// Search for substring in string.
-    static void constantConstantScalar(std::string data, const std::string & needle, UInt64 start_pos, UInt64 & res)
+    static void constantConstantScalar(
+        std::string data,
+        std::string needle,
+        UInt64 start_pos,
+        UInt64 & res)
     {
-        size_t start_byte = Impl::advancePos(data.data(), data.data() + data.size(), start_pos - 1) - data.data();
+        /// Match the spark behavior: start_pos < 1, return 0
+        if (start_pos < 1)
+        {
+            res = 0;
+            return;
+        }
+
+        auto start = std::max(start_pos, UInt64(1));
+
+        if (needle.empty())
+        {
+            /// Match the spark behavior: always return 1
+            res = 1;
+            return;
+        }
+
+        size_t start_byte = Impl::advancePos(data.data(), data.data() + data.size(), start - 1) - data.data();
         res = data.find(needle, start_byte);
         if (res == std::string::npos)
             res = 0;
@@ -132,7 +192,7 @@ struct PositionSparkImpl
 
         if (start_pos == nullptr)
         {
-            res[0] = 0;
+            constantConstantScalar(data, needle, 0, res[0]);
             return;
         }
 
@@ -143,14 +203,14 @@ struct PositionSparkImpl
         {
             auto start = start_pos->getUInt(i);
 
-            if (start == 0 || start > haystack_size + 1)
+            if (start < 1 || start > haystack_size + 1)
             {
                 res[i] = 0;
                 continue;
             }
             if (needle.empty())
             {
-                res[0] = 1;
+                res[i] = 1;
                 continue;
             }
             constantConstantScalar(data, needle, start, res[i]);
@@ -174,21 +234,27 @@ struct PositionSparkImpl
         ColumnString::Offset prev_haystack_offset = 0;
         ColumnString::Offset prev_needle_offset = 0;
 
-
         for (size_t i = 0; i < input_rows_count; ++i)
         {
             size_t needle_size = needle_offsets[i] - prev_needle_offset;
             size_t haystack_size = haystack_offsets[i] - prev_haystack_offset;
 
+            size_t haystack_chars_size = Impl::countChars(
+                reinterpret_cast<const char *>(&haystack_data[prev_haystack_offset]),
+                reinterpret_cast<const char *>(&haystack_data[haystack_offsets[i]]));
+
+            /// Match the spark behavior
             auto start = start_pos != nullptr ? start_pos->getUInt(i) : UInt64(0);
 
-            if (start == 0 || start > haystack_size + 1)
+            /// Match the spark behavior
+            if (start < 1 || start > haystack_chars_size + 1)
             {
                 res[i] = 0;
             }
             else if (0 == needle_size)
             {
-                /// An empty string is always 1 in compliance with Spark semantics.
+                /// An empty string is always at any position in `haystack`.
+                /// Match the spark behavior
                 res[i] = 1;
             }
             else
@@ -238,18 +304,23 @@ struct PositionSparkImpl
         /// NOTE You could use haystack indexing. But this is a rare case.
         ColumnString::Offset prev_needle_offset = 0;
 
+        size_t haystack_size = Impl::countChars(haystack.data(), haystack.data() + haystack.size());
+
         for (size_t i = 0; i < input_rows_count; ++i)
         {
             size_t needle_size = needle_offsets[i] - prev_needle_offset;
 
+            /// Match the spark behavior
             auto start = start_pos != nullptr ? start_pos->getUInt(i) : UInt64(0);
 
-            if (start == 0 || start > haystack.size() + 1)
+            /// Match the spark behavior
+            if (start < 1 || start > haystack_size + 1)
             {
                 res[i] = 0;
             }
             else if (0 == needle_size)
             {
+                /// Match the spark behavior
                 res[i] = 1;
             }
             else
@@ -259,7 +330,8 @@ struct PositionSparkImpl
 
                 const char * beg = Impl::advancePos(haystack.data(), haystack.data() + haystack.size(), start - 1);
                 size_t pos = searcher.search(
-                                 reinterpret_cast<const UInt8 *>(beg), reinterpret_cast<const UInt8 *>(haystack.data()) + haystack.size())
+                                reinterpret_cast<const UInt8 *>(beg),
+                                 reinterpret_cast<const UInt8 *>(haystack.data()) + haystack.size())
                     - reinterpret_cast<const UInt8 *>(haystack.data());
 
                 if (pos != haystack.size())

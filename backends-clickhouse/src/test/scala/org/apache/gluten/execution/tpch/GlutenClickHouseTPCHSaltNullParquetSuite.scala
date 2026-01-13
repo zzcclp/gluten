@@ -942,7 +942,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
         |position(null, null, 0),
         |position(l_returnflag, null, null),
         |position(null, l_shipinstruct, null),
-        |position(null, null, null)
+        |position(null, null, null),
+        |locate('da', concat(l_shipinstruct, ',da')),
+        |locate('da', concat(',da', l_shipinstruct)),
+        |locate('da', concat(l_shipinstruct, ',dabb')),
+        |locate('da', concat(',da', l_shipinstruct)),
+        |locate('da', concat(l_shipinstruct, ',da'), 5),
+        |locate('da', concat(',da', l_shipinstruct), 5)
         |from lineitem
         |""".stripMargin
     )(checkGlutenPlan[ProjectExecTransformer])
