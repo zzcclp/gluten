@@ -101,6 +101,7 @@ JobId JobScheduler::scheduleJob(Job&& job)
                 {
                     task_result.status = TaskResult::Status::FAILED;
                     task_result.message = e.what();
+                    LOG_WARNING(logger, "run job failed: {} - {}", task_result.status, e.what());
                 }
             });
     }

@@ -72,7 +72,7 @@ object GlutenCacheBase {
               case Status.ERROR =>
                 status = false
                 messages.append(
-                  s"executor : ${job._1}, failed with message: ${result.getMessage};"
+                  s"executor: ${job._1}, failed with message: ${result.getMessage};"
                 )
                 complete = true
               case Status.SUCCESS =>
@@ -93,7 +93,7 @@ object GlutenCacheBase {
     jobs.foreach(
       job => {
         if (!job._2.status) {
-          messages.append(job._2.reason)
+          messages.append(s"executor: ${job._1}, failed with message: ${job._2.reason}")
           status = false
         }
       })

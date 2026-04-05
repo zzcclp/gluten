@@ -213,6 +213,7 @@ Task CacheManager::cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles &
             std::unique_ptr<DB::ReadBuffer> rb = read_buffer_builder->build(file);
             while (!rb->eof())
                 rb->ignoreAll();
+            LOG_INFO(getLogger("CacheManager"), "Load cache file {} success.", file.uri_file());
         }
         catch (std::exception & e)
         {

@@ -44,7 +44,7 @@ public class KerberosTicketRefreshAssist {
   private static final String KEYTAB_KEY = BACKEND_CONFIG_KEY + "kerberos.keytab";
   private static final String KRB5_CONF_KEY = BACKEND_CONFIG_KEY + "kerberos.krb5.file";
   private static final String RELOGIN_INTERVAL_KEY = "spark.kerberos.relogin.period";
-  private static final String RELOGIN_INTERVAL_DEFAULT = "120m";
+  private static final String RELOGIN_INTERVAL_DEFAULT = "60m";
   private static final String CACHE_NAME = "krb5cc_gluten";
   private static final String KRB5_CONF_NAME = "krb5.conf";
   private static KerberosTicketRefreshAssist INSTANCE;

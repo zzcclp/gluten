@@ -31,6 +31,9 @@ import javax.security.auth.kerberos.KeyTab;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class KerberosInit {
 
@@ -38,6 +41,7 @@ public class KerberosInit {
   private final PrincipalName principal;
   private final KeyTab keytab;
   private final String cachePath;
+  private final String realCachePath;
   private final String krb5ConfPath;
 
   public KerberosInit(String prc, String keytabPath, String cachePath, String krb5ConfPath)
@@ -53,7 +57,8 @@ public class KerberosInit {
       }
       this.keytab = KeyTab.getInstance(keytabFile);
     }
-    this.cachePath = cachePath;
+    this.cachePath = cachePath + "_tmp";
+    this.realCachePath = cachePath;
     this.krb5ConfPath = krb5ConfPath;
     if (krb5ConfPath != null && !new File(krb5ConfPath).exists()) {
       throw new IllegalArgumentException("krb5 conf file not exists: " + krb5ConfPath);
@@ -82,7 +87,8 @@ public class KerberosInit {
     }
     cache.update(credentials);
     cache.save();
-    LOG.info("Successfully stored kerberos ticket cache in " + cachePath);
+    Files.move(Paths.get(cachePath), Paths.get(realCachePath), StandardCopyOption.REPLACE_EXISTING);
+    LOG.warn("Successfully stored kerberos ticket cache in " + realCachePath);
   }
 
   public void execute() throws KrbException, IOException {

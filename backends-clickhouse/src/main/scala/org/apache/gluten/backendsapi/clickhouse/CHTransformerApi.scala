@@ -172,6 +172,17 @@ class CHTransformerApi extends TransformerApi with Logging {
         nativeConfMap.get(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key))
       nativeConfMap.remove(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key)
     }
+
+    if (
+      nativeConfMap
+        .containsKey("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.log")
+    ) {
+      val logPath =
+        nativeConfMap.get("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.log")
+      val workingDir = System.getProperty("user.dir")
+      nativeConfMap
+        .put("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.log", workingDir + logPath)
+    }
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {
