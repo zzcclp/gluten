@@ -213,6 +213,7 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
         auto parser_shared_resources = std::make_shared<FormatParserSharedResources>(context->getSettingsRef(), /*num_streams_=*/1);
 
         size_t min_bytes_for_seek = format_settings.parquet.local_read_min_bytes_for_seek;
+        // TODO: check whether support complex types
         if (format_settings.parquet.use_native_reader_v3 && !readRowIndex && onlyFlatType)
         {
             LOG_TRACE(
