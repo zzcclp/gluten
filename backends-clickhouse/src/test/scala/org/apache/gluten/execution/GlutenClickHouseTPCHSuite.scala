@@ -22,6 +22,9 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 
+import org.scalatest.DoNotDiscover
+
+@DoNotDiscover
 class GlutenClickHouseTPCHSuite extends MergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */

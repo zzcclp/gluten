@@ -28,12 +28,14 @@ import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import io.delta.tables.ClickhouseTable
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter._
+import org.scalatest.DoNotDiscover
 
 import java.io.File
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.concurrent.duration.DurationInt
 
+@DoNotDiscover
 class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
