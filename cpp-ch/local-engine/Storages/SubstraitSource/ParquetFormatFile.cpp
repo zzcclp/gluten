@@ -220,6 +220,14 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
                 &Poco::Logger::get("ParquetFormatFile"),
                 "Using native parquet reader v3");
             auto input = std::make_shared<ParquetV3BlockInputFormat>(*read_buffer_, read_header, format_settings, parser_shared_resources, parser_group, min_bytes_for_seek);
+            /// ParquetV3 Reader ignores `format_settings.parquet.skip_row_groups` (unlike ParquetBlockInputFormat).
+            /// Spark splits are expressed via Substrait file start/length; metaBuilder selects row groups, and
+            /// we must pass them as buckets so each task only reads its slice of the file.
+            std::vector<size_t> row_group_ids;
+            row_group_ids.reserve(metaBuilder.readRowGroups.size());
+            for (const auto & rg : metaBuilder.readRowGroups)
+                row_group_ids.push_back(static_cast<size_t>(rg.index));
+            input->setBucketsToRead(std::make_shared<ParquetFileBucketInfo>(row_group_ids));
             return std::make_shared<ParquetInputFormat>(std::move(read_buffer_), input, std::move(provider), *read_header, header);
         }
         else
