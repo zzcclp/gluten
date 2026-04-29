@@ -219,7 +219,7 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
         auto parser_group = std::make_shared<FormatFilterInfo>(filter_actions_dag, context, nullptr, nullptr, nullptr);
         auto parser_shared_resources = std::make_shared<FormatParserSharedResources>(context->getSettingsRef(), /*num_streams_=*/1);
 
-        if (format_settings.parquet.use_native_reader_v3 && !readRowIndex)
+        if (format_settings.parquet.use_native_reader_v3 && !readRowIndex && onlyFlatType)
         {
             LOG_TRACE(
                 &Poco::Logger::get("ParquetFormatFile"),
