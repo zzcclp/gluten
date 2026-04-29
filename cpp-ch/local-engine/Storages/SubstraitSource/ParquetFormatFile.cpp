@@ -219,6 +219,8 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
         auto parser_group = std::make_shared<FormatFilterInfo>(filter_actions_dag, context, nullptr, nullptr, nullptr);
         auto parser_shared_resources = std::make_shared<FormatParserSharedResources>(context->getSettingsRef(), /*num_streams_=*/1);
 
+        // TODO: rebase-25.12, support complex types when there is a nullable type
+        // for example: parquet type is Array, requested type is Nullable(Array(Nullable(String)))
         if (format_settings.parquet.use_native_reader_v3 && !readRowIndex && onlyFlatType)
         {
             LOG_TRACE(
