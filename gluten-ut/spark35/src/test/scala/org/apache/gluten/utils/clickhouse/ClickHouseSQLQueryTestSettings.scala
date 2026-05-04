@@ -137,7 +137,6 @@ object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
     // the results are the same, but the order of the unsorted data is different.
     // "subquery/in-subquery/in-order-by.sql",
     // CH- "subquery/in-subquery/in-set-operations.sql",
-    // TODO: rebase-25.12, fix later, will core dump
     "subquery/in-subquery/in-with-cte.sql",
     "subquery/in-subquery/nested-not-in.sql",
     "subquery/in-subquery/not-in-group-by.sql",
