@@ -99,8 +99,18 @@ public:
             {
                 for (const auto & col : header.getColumnsWithTypeAndName())
                 {
-                    auto result_col = col.type->createColumnConst(1, col.type->getDefault());
-                    result_cols.emplace_back(result_col);
+                    if (col.name.starts_with("sum0("))
+                    {
+                        // For the Sum0 function, even though the return type is nullable, the default value is the nested type one.
+                        auto nested_type = DB::removeNullable(col.type);
+                        auto result_col = nested_type->createColumnConst(1, nested_type->getDefault());
+                        result_cols.emplace_back(result_col);
+                    }
+                    else
+                    {
+                        auto result_col = col.type->createColumnConst(1, col.type->getDefault());
+                        result_cols.emplace_back(result_col);
+                    }
                 }
             }
             else

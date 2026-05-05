@@ -20,6 +20,9 @@ import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
+import org.apache.spark.sql.catalyst.expressions.{Expression, Sum0}
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition}
@@ -27,6 +30,8 @@ import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition
 import org.apache.hadoop.fs.Path
 
 import java.nio.file.{Files, Paths}
+
+import scala.reflect.ClassTag
 
 class GlutenClickHouseTPCHParquetBucketSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -47,10 +52,30 @@ class GlutenClickHouseTPCHParquetBucketSuite
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
       .setCHConfig("enable_pre_projection_for_join_conditions", "false")
       .setCHConfig("enable_grace_aggregate_spill_test", "true")
+      .set(
+        "spark.gluten.sql.columnar.extended.expressions.transformer",
+        "org.apache.spark.sql.catalyst.expressions.gluten.KapExpressionsTransformer")
   }
 
   lazy val hasSortByCol: Boolean = true
   lazy val tableFormat: String = "parquet"
+
+  private def registerSparkUdf[T <: Expression: ClassTag](
+      name: String,
+      since: Option[String] = None
+  ): Unit = {
+    val (expr, builder) = FunctionRegistryBase.build[T](name, since)
+    spark.sessionState.functionRegistry.registerFunction(
+      name = FunctionIdentifier.apply(name),
+      info = expr,
+      builder = builder
+    )
+  }
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    registerSparkUdf[Sum0]("sum0")
+  }
 
   override protected def createTestTables(): Unit = {
     createTPCHDefaultBucketTables(bucketTableResourcePath)
@@ -456,6 +481,128 @@ class GlutenClickHouseTPCHParquetBucketSuite
       SQL1,
       compareResult = true,
       df => { checkHashAggregateCount(df, 1) }
+    )
+
+    val SQLSum0 =
+      """
+        |select l_orderkey, l_returnflag, sum0(aa) as t
+        |from (select *, null as aa from lineitem)
+        |group by l_orderkey, l_returnflag
+        |order by l_orderkey, l_returnflag, t
+        |limit 100
+        |""".stripMargin
+    withSQLConf(("spark.sql.adaptive.enabled", "false")) {
+      compareResultsAgainstVanillaSpark(
+        SQLSum0,
+        compareResult = true,
+        df => {
+          checkHashAggregateCount(df, 1)
+        }
+      )
+    }
+    compareResultsAgainstVanillaSpark(
+      SQLSum0,
+      compareResult = true,
+      df => { checkHashAggregateCount(df, 1) }
+    )
+
+    val SQLSum1 =
+      """
+        |select sum0(t)
+        |from (
+        |select /*+ REPARTITION(1) */ l_orderkey, max(l_linenumber) as t
+        |from lineitem
+        |where 1=1
+        |and l_linestatus like concat(concat('@', '2'), '2')
+        |and l_returnflag in (select max(l_returnflag) from lineitem)
+        |group by l_orderkey) as ttt
+        |""".stripMargin
+    withSQLConf(("spark.sql.adaptive.enabled", "false")) {
+      compareResultsAgainstVanillaSpark(
+        SQLSum1,
+        compareResult = true,
+        df => {
+          checkHashAggregateCount(df, 2)
+        }
+      )
+    }
+    compareResultsAgainstVanillaSpark(
+      SQLSum1,
+      compareResult = true,
+      df => {
+        checkHashAggregateCount(df, 2)
+      }
+    )
+
+    val SQLSum2 =
+      """
+        |select sum0(t) as uuu
+        |from (
+        |select /*+ REPARTITION(1) */ l_orderkey, max(l_linenumber) as t
+        |from lineitem
+        |where l_returnflag in (select max(l_returnflag) from lineitem)
+        |group by l_orderkey) as ttt
+        |where t < 0
+        |""".stripMargin
+    withSQLConf(("spark.sql.adaptive.enabled", "false")) {
+      compareResultsAgainstVanillaSpark(
+        SQLSum2,
+        compareResult = true,
+        df => { checkHashAggregateCount(df, 2) }
+      )
+    }
+    compareResultsAgainstVanillaSpark(
+      SQLSum2,
+      compareResult = true,
+      df => { checkHashAggregateCount(df, 2) }
+    )
+
+    val SQLSum3 =
+      """
+        |select count(1) as uuu
+        |from (
+        |select /*+ REPARTITION(1) */ l_orderkey, max(l_linenumber) as t
+        |from lineitem
+        |where l_returnflag in (select max(l_returnflag) from lineitem)
+        |group by l_orderkey) as ttt
+        |where t < 0
+        |""".stripMargin
+    withSQLConf(("spark.sql.adaptive.enabled", "false")) {
+      compareResultsAgainstVanillaSpark(
+        SQLSum3,
+        compareResult = true,
+        df => { checkHashAggregateCount(df, 2) }
+      )
+    }
+    compareResultsAgainstVanillaSpark(
+      SQLSum3,
+      compareResult = true,
+      df => { checkHashAggregateCount(df, 2) }
+    )
+
+    val SQLSum4 =
+      """
+        |select sum0(t)
+        |from (
+        |select /*+ REPARTITION(1) */ l_orderkey, max(aa) as t
+        |from (select *, null as aa from lineitem)
+        |group by l_orderkey) as ttt
+        |""".stripMargin
+    withSQLConf(("spark.sql.adaptive.enabled", "false")) {
+      compareResultsAgainstVanillaSpark(
+        SQLSum4,
+        compareResult = false,
+        df => {
+          checkHashAggregateCount(df, 2)
+        }
+      )
+    }
+    compareResultsAgainstVanillaSpark(
+      SQLSum4,
+      compareResult = false,
+      df => {
+        checkHashAggregateCount(df, 2)
+      }
     )
 
     val SQL2 =
