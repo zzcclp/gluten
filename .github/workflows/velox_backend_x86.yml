@@ -595,7 +595,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.3" ]
-        celeborn: [ "celeborn-0.6.1", "celeborn-0.5.4"]
+        celeborn: [ "celeborn-0.6.3", "celeborn-0.5.4"]
         writer: ["sort", "hash"]
     runs-on: ubuntu-22.04
     container: centos:8
@@ -630,7 +630,7 @@ jobs:
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
-          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.1" ]; then
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.3" ]; then
             EXTRA_PROFILE="-Pceleborn-0.6"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
