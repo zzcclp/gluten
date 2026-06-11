@@ -19,16 +19,40 @@ package org.apache.spark.sql.execution.joins
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait, GlutenTestUtils}
 
-class GlutenOuterJoinSuiteForceShjOn extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
+class GlutenOuterJoinSuiteBase extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
+  testWithWholeStageCodegenOnAndOff(
+    "GLUTEN-9343: SPARK-46037: ShuffledHashJoin build left with left outer join, codegen off") {
+    _ =>
+      def join(hint: String): DataFrame = {
+        sql(s"""
+               |SELECT /*+ $hint */ *
+               |FROM testData t1
+               |LEFT OUTER JOIN
+               |testData2 t2
+               |ON key = a AND concat(value, b) = '12'
+               |""".stripMargin)
+      }
+
+      val df1 = join("SHUFFLE_HASH(t1)")
+      val df2 = join("SHUFFLE_MERGE(t1)")
+      GlutenTestUtils.compareAnswers(df1.collect().toSeq, df2.collect().toSeq, sort = true)
+  }
+}
+
+class GlutenOuterJoinSuiteForceShjOn
+  extends GlutenOuterJoinSuiteBase
+  with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
   }
 }
 
-class GlutenOuterJoinSuiteForceShjOff extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
+class GlutenOuterJoinSuiteForceShjOff
+  extends GlutenOuterJoinSuiteBase
+  with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")

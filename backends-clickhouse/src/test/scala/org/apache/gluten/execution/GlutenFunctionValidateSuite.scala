@@ -1669,7 +1669,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                              |timestampdiff(MINUTE, t2, timestamp '2025-03-31 00:25:00.500'),
                              |timestampdiff(SECOND, t2, timestamp '2025-06-05 00:23:57.500')
                              |from time""".stripMargin) {
-          df => checkGlutenPlan[ProjectExecTransformer](_)
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }

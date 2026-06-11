@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
-import org.apache.spark.sql.catalyst.util.{KapDateTimeUtils, TimeUtil, TypeUtils}
+import org.apache.spark.sql.catalyst.util.{KapDateTimeUtils, TimeUtil}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -39,7 +39,12 @@ case class Sum0(child: Expression) extends DeclarativeAggregate with ImplicitCas
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
   override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForNumericExpr(child.dataType, "function sum")
+    if (child.dataType.isInstanceOf[NumericType] || child.dataType == NullType) {
+      TypeCheckResult.TypeCheckSuccess
+    } else {
+      TypeCheckResult.TypeCheckFailure(
+        s"Function sum0 requires numeric types, not ${child.dataType.catalogString}")
+    }
 
   private lazy val resultType = child.dataType match {
     case DecimalType.Fixed(precision, scale) =>

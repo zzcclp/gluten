@@ -69,7 +69,7 @@
 
   <profiles>
     <profile>
-      <id>kyspark</id>
+      <id>kyspark-3.3</id>
       <modules>
         <module>spark33</module>
       </modules>
@@ -81,7 +81,7 @@
       </modules>
     </profile>
     <profile>
-      <id>spark-3.5</id>
+      <id>kyspark-3.5</id>
       <modules>
         <module>spark35</module>
       </modules>

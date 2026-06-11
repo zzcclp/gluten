@@ -22,9 +22,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>spark-sql-columnar-shims-kyspark</artifactId>
+  <artifactId>spark-sql-columnar-shims-kyspark33</artifactId>
   <packaging>jar</packaging>
-  <name>Gluten Shims for Spark 3.3</name>
+  <name>Gluten Shims for KySpark 3.3</name>
 
   <dependencies>
     <dependency>

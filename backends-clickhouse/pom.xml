@@ -357,6 +357,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <arg>--add-exports=java.security.jgss/sun.security.krb5.internal=ALL-UNNAMED</arg>
+            <arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
+            <arg>--add-exports=java.security.jgss/sun.security.krb5.internal.ccache=ALL-UNNAMED</arg>
+          </compilerArgs>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -543,13 +550,13 @@
       </dependencies>
     </profile>
     <profile>
-      <id>spark-3.3</id>
+      <id>kyspark-3.3</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
     </profile>
     <profile>
-      <id>spark-3.5</id>
+      <id>kyspark-3.5</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>

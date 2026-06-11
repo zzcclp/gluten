@@ -69,8 +69,8 @@
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.5</sparkbundle.version>
     <spark.plain.version>35</spark.plain.version>
-    <spark.version>4.0.2</spark.version>
-    <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
+    <spark.version>3.5.5-kylin-5.3.0-SNAPSHOT</spark.version>
+    <sparkshim.artifactId>spark-sql-columnar-shims-kyspark35</sparkshim.artifactId>
     <iceberg.version>1.10.0</iceberg.version>
     <iceberg.binary.version>10</iceberg.binary.version>
     <paimon.version>1.4.1</paimon.version>
@@ -240,6 +240,10 @@
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.tomcat</groupId>
@@ -1220,12 +1224,12 @@
       </properties>
     </profile>
     <profile>
-      <id>kyspark</id>
+      <id>kyspark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
         <spark.plain.version>33</spark.plain.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-kyspark</sparkshim.artifactId>
-        <spark.version>3.3.0-kylin-5.2.9</spark.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-kyspark33</sparkshim.artifactId>
+        <spark.version>3.3.0-kylin-5.2.10-SNAPSHOT</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <iceberg.binary.version>5</iceberg.binary.version>
         <delta.package.name>delta-core</delta.package.name>
@@ -1281,12 +1285,12 @@
       </dependencies>
     </profile>
     <profile>
-      <id>spark-3.5</id>
+      <id>kyspark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
         <spark.plain.version>35</spark.plain.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
-        <spark.version>3.5.5</spark.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-kyspark35</sparkshim.artifactId>
+        <spark.version>3.5.5-kylin-5.3.0-SNAPSHOT</spark.version>
         <iceberg.version>1.10.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.3.2</delta.version>
