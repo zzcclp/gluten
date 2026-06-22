@@ -606,6 +606,9 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven.compiler.plugin}</version>
           <configuration>
+            <source>${java.version}</source>
+            <target>${java.version}</target>
+            <fork>true</fork>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
           </configuration>
