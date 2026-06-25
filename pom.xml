@@ -596,7 +596,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-                <classifier>${sparkbundle.version}</classifier>
+                <classifier>${sparkbundle.version}-${scala.binary.version}</classifier>
               </configuration>
             </execution>
           </executions>

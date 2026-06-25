@@ -360,7 +360,7 @@
         <configuration>
           <createDependencyReducedPom>false</createDependencyReducedPom>
           <shadedArtifactAttached>false</shadedArtifactAttached>
-          <outputFile>target/${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}-jar-with-dependencies.jar</outputFile>
+          <outputFile>target/${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}-${scala.binary.version}-with-dependencies.jar</outputFile>
           <relocations>
             <relocation>
               <pattern>com.google.protobuf</pattern>
