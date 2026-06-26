@@ -1931,6 +1931,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
+    .exclude("SPARK-33449: simple select queries with file meta cache")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
     .excludeCH("Spark vectorized reader - without partition data column - select a single complex field and in where clause")
     .excludeCH("Spark vectorized reader - with partition data column - select a single complex field and in where clause")
