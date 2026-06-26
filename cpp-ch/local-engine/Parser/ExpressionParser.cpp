@@ -375,7 +375,7 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 if (precision < 16)
                 {
                     // first, covert string to float64
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), "Float64"));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->isNullable() ? "Nullable(Float64)" : "Float64"));
                     const ActionsDAG::Node * first_cast_node = toFunctionNode(actions_dag, "CAST", args);
 
                     // using roundHalfUp
