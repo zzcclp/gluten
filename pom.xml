@@ -993,7 +993,7 @@
               <rules>
                 <requireActiveProfile>
                   <!-- Spark 4.0 requires Java 17+ -->
-                  <profiles>spark-3.3,spark-3.4,spark-3.5,spark-4.0,spark-4.1</profiles>
+                  <profiles>kyspark-3.3,spark-3.4,kyspark-3.5,spark-4.0,spark-4.1</profiles>
                   <all>false</all>
                   <message>Missing spark version profile: -Pspark-&lt;version&gt;</message>
                 </requireActiveProfile>

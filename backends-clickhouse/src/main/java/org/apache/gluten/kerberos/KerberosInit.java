@@ -87,7 +87,19 @@ public class KerberosInit {
     }
     cache.update(credentials);
     cache.save();
-    Files.move(Paths.get(cachePath), Paths.get(realCachePath), StandardCopyOption.REPLACE_EXISTING);
+    try {
+      // try to use atomic move
+      Files.move(
+          Paths.get(cachePath),
+          Paths.get(realCachePath),
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.ATOMIC_MOVE);
+    } catch (Exception e) {
+      LOG.warn("Fall back to use standard move file " + cachePath);
+      // Fall back to use standard move
+      Files.move(
+          Paths.get(cachePath), Paths.get(realCachePath), StandardCopyOption.REPLACE_EXISTING);
+    }
     LOG.warn("Successfully stored kerberos ticket cache in " + realCachePath);
   }
 
