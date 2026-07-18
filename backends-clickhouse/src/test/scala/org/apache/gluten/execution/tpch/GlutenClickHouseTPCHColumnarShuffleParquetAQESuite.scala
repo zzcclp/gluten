@@ -100,7 +100,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuit
   }
 
   test("TPCH Q6 + New CH Parquet V3") {
-    compareResultsAgainstVanillaSpark(
+    val sql =
       """
         |SELECT
         |    sum(l_extendedprice * l_discount) AS revenue
@@ -111,7 +111,9 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuit
         |    AND l_shipdate < date'1994-01-01' + interval 1 year
         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
         |    AND l_orderkey = 119430;
-        |""".stripMargin,
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
       customCheck = {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
@@ -124,6 +126,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuit
           assert(plans(0).metrics("pruningTime").value === pruningTimeValueSpark)
           assert(plans(0).metrics("filesSize").value === 19230111)
           assert(plans(0).metrics("numOutputRows").value === 20000)
+          assert(plans(0).metrics("isParquetReaderV3").value > 0)
       }
     )
   }

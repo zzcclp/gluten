@@ -223,7 +223,7 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
         // for example: parquet type is Array, requested type is Nullable(Array(Nullable(String)))
         if (format_settings.parquet.use_native_reader_v3 && !readRowIndex && onlyFlatType)
         {
-            LOG_TRACE(
+            LOG_DEBUG(
                 &Poco::Logger::get("ParquetFormatFile"),
                 "Using native parquet reader v3");
             // generate parquet meta data cache
@@ -251,7 +251,7 @@ ParquetFormatFile::createInputFormat(const Block & header, const std::shared_ptr
         }
         else
         {
-            LOG_TRACE(
+            LOG_DEBUG(
                 &Poco::Logger::get("ParquetFormatFile"),
                 "Using native parquet reader");
             auto input = std::make_shared<ParquetBlockInputFormat>(*read_buffer_, read_header, format_settings, parser_shared_resources, parser_group, min_bytes_for_seek);
