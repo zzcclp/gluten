@@ -44,11 +44,15 @@ object Validators {
     // Get VeloxConfig if available
     private val veloxConf: Option[Any] = {
       try {
-        // scalastyle:off classforname
-        val veloxConfigClass = Class.forName("org.apache.gluten.config.VeloxConfig")
-        // scalastyle:on classforname
-        val getMethod = veloxConfigClass.getMethod("get")
-        Some(getMethod.invoke(null))
+        if (BackendsApiManager.getBackendName.equals("velox")) {
+          // scalastyle:off classforname
+          val veloxConfigClass = Class.forName("org.apache.gluten.config.VeloxConfig")
+          // scalastyle:on classforname
+          val getMethod = veloxConfigClass.getMethod("get")
+          Some(getMethod.invoke(null))
+        } else {
+          None
+        }
       } catch {
         case _: Exception => None
       }
