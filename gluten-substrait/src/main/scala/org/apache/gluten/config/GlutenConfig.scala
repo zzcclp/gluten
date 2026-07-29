@@ -1709,4 +1709,12 @@ object GlutenConfig extends ConfigRegistry {
           "total size of small files is below this threshold.")
       .doubleConf
       .createWithDefault(0.5)
+
+  val GLUTEN_QUERY_EXEC_LISTENER_ENABLED =
+    buildConf("spark.gluten.sql.columnar.query.execution.listener.enabled")
+      .doc(
+        "Enable a SparkListener that generates complete Gluten UI data after query execution " +
+          "completes")
+      .booleanConf
+      .createWithDefault(true)
 }

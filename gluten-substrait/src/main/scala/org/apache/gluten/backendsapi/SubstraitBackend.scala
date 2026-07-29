@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.GlutenBuildInfo
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED
+import org.apache.gluten.config.GlutenConfig.{GLUTEN_QUERY_EXEC_LISTENER_ENABLED, GLUTEN_SOFT_AFFINITY_ENABLED}
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.extension.columnar.LoggedRule
 import org.apache.gluten.extension.injector.Injector
@@ -46,7 +46,9 @@ trait SubstraitBackend extends Backend with Logging {
 
     // Register Gluten listeners
     GlutenSQLAppStatusListener.register(sc)
-    GlutenQueryExecutionListener.register(sc)
+    if (conf.get(GLUTEN_QUERY_EXEC_LISTENER_ENABLED)) {
+      GlutenQueryExecutionListener.register(sc)
+    }
     if (conf.get(GLUTEN_SOFT_AFFINITY_ENABLED)) {
       SoftAffinityListener.register(sc)
     }
