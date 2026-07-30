@@ -22,7 +22,8 @@ MVN_CMD="${BASEDIR}/../build/mvn"
 
 GLUTEN_UPDATE="${GLUTEN_UPDATE:-1}" \
 ${MVN_CMD} clean test \
-  -Pspark-4.0 -Pscala-2.13 -Pbackends-velox -pl backends-velox -am \
+  -Pkyspark-3.3 -Pscala-2.12 -Pbackends-clickhouse -Pdelta \
+  -Phadoop-3.3 -Pdelta -Pceleborn -Piceberg -pl backends-clickhouse -am \
   -Dtest=none \
   -DfailIfNoTests=false \
   -DwildcardSuites=org.apache.gluten.config.AllGlutenConfiguration,org.apache.gluten.config.AllVeloxConfiguration
