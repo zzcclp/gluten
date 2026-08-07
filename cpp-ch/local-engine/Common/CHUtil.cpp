@@ -978,6 +978,12 @@ void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_c
     JobScheduler::initialize(QueryContext::globalContext());
     CacheManager::initialize(QueryContext::globalMutableContext());
 
+    const char * config_path = std::getenv("KRB5_CONFIG");
+    if (config_path)
+        LOG_WARNING(logger, "KRB5_CONFIG = {}", config_path);
+    else
+        LOG_WARNING(logger, "KRB5_CONFIG is not set");
+
     std::call_once(
         init_flag,
         [&]
