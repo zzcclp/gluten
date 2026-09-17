@@ -92,7 +92,44 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
+      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
+      "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
+      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
+      "pruningTime" ->
+        SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "selectedMarksPk" -> SQLMetrics.createMetric(sparkContext, "selected marks primary"),
+      "selectedMarks" -> SQLMetrics.createMetric(sparkContext, "selected marks"),
+      "totalMarksPk" -> SQLMetrics.createMetric(sparkContext, "total marks primary"),
+      "readCacheHits" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times the read from filesystem cache hit the cache"),
+      "missCacheHits" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times the read from filesystem cache miss the cache"),
+      "readCacheBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "Bytes read from filesystem cache"),
+      "readMissBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "Bytes read from filesystem cache source (from remote fs, etc)"),
+      "readCacheMillisecond" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "Time reading from filesystem cache"),
+      "missCacheMillisecond" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "Time reading from filesystem cache source (from remote filesystem, etc)"),
+      "parquetMetadataCacheHits" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times parquet metadata has been found in the cache"),
+      "parquetMetadataCacheMisses" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times parquet metadata has not been found in the cache"),
+      "isParquetReaderV3" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Is it the CH Parquet Reader V3 (greater than 0)")
     )
 
   override def genBatchScanTransformerMetricsUpdater(

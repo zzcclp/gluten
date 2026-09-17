@@ -31,6 +31,18 @@ class BatchScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
   val extraTime: SQLMetric = metrics("extraTime")
   val inputWaitTime: SQLMetric = metrics("inputWaitTime")
   val outputWaitTime: SQLMetric = metrics("outputWaitTime")
+  val selectedMarksPK: SQLMetric = metrics("selectedMarksPk")
+  val selectedMarks: SQLMetric = metrics("selectedMarks")
+  val totalMarksPK: SQLMetric = metrics("totalMarksPk")
+  val readCacheHits: SQLMetric = metrics("readCacheHits")
+  val missCacheHits: SQLMetric = metrics("missCacheHits")
+  val readCacheBytes: SQLMetric = metrics("readCacheBytes")
+  val readMissBytes: SQLMetric = metrics("readMissBytes")
+  val readCacheMillisecond: SQLMetric = metrics("readCacheMillisecond")
+  val missCacheMillisecond: SQLMetric = metrics("missCacheMillisecond")
+  val parquetMetadataCacheHits: SQLMetric = metrics("parquetMetadataCacheHits")
+  val parquetMetadataCacheMisses: SQLMetric = metrics("parquetMetadataCacheMisses")
+  val isParquetReaderV3: SQLMetric = metrics("isParquetReaderV3")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
@@ -46,6 +58,22 @@ class BatchScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
         inputWaitTime += (metricsData.inputWaitTime / 1000L).toLong
         outputWaitTime += (metricsData.outputWaitTime / 1000L).toLong
         outputVectors += metricsData.outputVectors
+
+        metricsData.getSteps.forEach(
+          step => {
+            selectedMarksPK += step.selectedMarksPk
+            selectedMarks += step.selectedMarks
+            totalMarksPK += step.totalMarksPk
+            readCacheHits += step.readCacheHits
+            missCacheHits += step.missCacheHits
+            readCacheBytes += step.readCacheBytes
+            readMissBytes += step.readMissBytes
+            readCacheMillisecond += step.readCacheMillisecond
+            missCacheMillisecond += step.missCacheMillisecond
+            parquetMetadataCacheHits += step.parquetMetadataCacheHits
+            parquetMetadataCacheMisses += step.parquetMetadataCacheMisses
+            isParquetReaderV3 += step.parquetReaderVersion
+          })
 
         MetricsUtil.updateExtraTimeMetric(
           metricsData,

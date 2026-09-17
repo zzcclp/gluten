@@ -18,71 +18,42 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 
-import org.scalatest.DoNotDiscover
-
-@DoNotDiscover
-class GlutenClickHouseDSV2Suite extends MergeTreeSuite {
+class GlutenClickHouseDSV2Suite extends ParquetSuite {
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "sort")
-      .set("spark.io.compression.codec", "snappy")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.sql.sources.useV1SourceList", "avro,csv,json,kafka,orc,text")
+      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.sql.adaptive.enabled", "false")
   }
 
-  final override val testCases: Seq[Int] = Seq(
-    3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
-  )
-  setupTestCase()
+  test("test BatchScanExecTransformer metrics") {
+    val df = spark.read
+      .format("parquet")
+      .load(testParquetAbsolutePath + "/lineitem")
+      .filter("l_orderkey = 119430")
 
-  test("TPCH Q1") {
-    customCheck(1) {
-      df =>
-        val scanExec = df.queryExecution.executedPlan.collect {
+    compareDfResultsAgainstVanillaSpark(
+      () => {
+        spark.read
+          .format("parquet")
+          .load(testParquetAbsolutePath + "/lineitem")
+          .filter("l_orderkey = 119430")
+      },
+      true,
+      df => {
+        val plans = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(scanExec.size == 1)
-    }
-  }
+        assert(plans.size == 1)
+        assert(plans(0).isInstanceOf[BatchScanExecTransformer])
 
-  test("TPCH Q2") {
-    customCheck(2) {
-      df =>
-        val scanExec = df.queryExecution.executedPlan.collect {
-          case scanExec: BasicScanExecTransformer => scanExec
-        }
-        assert(scanExec.size == 8)
-    }
-  }
-
-  test("test 'select count(1)' with empty columns to read") {
-    val result = runSql("""
-                          |select count(1) from lineitem
-                          |""".stripMargin) { _ => }
-    assert(result.head.getLong(0) == 600572L)
-  }
-
-  test("test 'select count(*)' with empty columns to read") {
-    val result = runSql("""
-                          |select count(*) from lineitem
-                          |""".stripMargin) { _ => }
-    assert(result.head.getLong(0) == 600572L)
-  }
-
-  test("test 'select sum(2)' with empty columns to read") {
-    val result = runSql("""
-                          |select sum(2) from lineitem
-                          |""".stripMargin) { _ => }
-    assert(result.head.getLong(0) == 1201144L)
-  }
-
-  test("test 'select 1' with empty columns to read") {
-    val result = runSql("""
-                          |select 1 from lineitem limit 2
-                          |""".stripMargin) { _ => }
-    assert(result.size == 2)
-    assert(result.head.getInt(0) == 1 && result(1).getInt(0) == 1)
+        assert(plans(0).metrics("numOutputRows").value === 20000)
+        assert(plans(0).metrics("isParquetReaderV3").value === 1)
+      }
+    )
   }
 }
