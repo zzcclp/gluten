@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{FlattenedAnd, FlattenedOr}
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -31,6 +32,9 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import org.apache.commons.io.FileUtils
+
+import java.io.File
 import java.nio.file.Files
 import java.sql.{Date, Timestamp}
 
@@ -1746,6 +1750,73 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                              |from time""".stripMargin) {
           checkGlutenPlan[ProjectExecTransformer]
         }
+    }
+  }
+
+  test("int96 timestamp overflow check") {
+    def createDataPath(outputPath: String): Unit = {
+      val outputPathDir = new File(outputPath)
+      if (outputPathDir.exists()) {
+        FileUtils.forceDelete(outputPathDir)
+      }
+    }
+
+    withSQLConf(
+      "spark.sql.parquet.int96RebaseModeInRead" -> "CORRECTED",
+      "spark.sql.parquet.int96RebaseModeInWrite" -> "CORRECTED") {
+      import java.sql.Timestamp
+      import java.time.LocalDateTime
+
+      def ts(year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int): Timestamp = {
+        val ldt = LocalDateTime.of(year, month, day, hour, minute, second)
+        Timestamp.valueOf(ldt)
+      }
+
+      val data = Seq(
+        ("normal_2023", ts(2023, 12, 31, 23, 59, 59)),
+        ("ancient_0001", ts(1, 1, 1, 0, 0, 0)),
+        ("future_9999", ts(9999, 12, 31, 23, 59, 59)),
+        ("pre_epoch_-1000", ts(-1000, 1, 10, 23, 59, 59))
+      )
+      import testImplicits._
+      val df = data.toDF("id", "event_time")
+      val outputPath = dataHome + "/int96_timestamp_parquet"
+
+      withSQLConf(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings" +
+          ".int96_timestamp_overflow_exception_or_not" -> "true") {
+        createDataPath(outputPath)
+        df.repartition(1).write.mode("overwrite").parquet(outputPath)
+
+        try {
+          spark.sql(
+            s"""
+               |select * from parquet.`$outputPath/`
+               |""".stripMargin)
+        } catch {
+          case e: GlutenException => assert(e.toString.contains("INT96 timestamp out of range"))
+          case t: Throwable => logError(t.toString, t)
+        }
+      }
+
+      withSQLConf(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings" +
+          ".int96_timestamp_overflow_exception_or_not" -> "false") {
+        createDataPath(outputPath)
+        df.repartition(1).write.mode("overwrite").parquet(outputPath)
+        val res = spark.sql(
+          s"""
+             |select * from parquet.`$outputPath/`
+             |order by id
+             |""".stripMargin).collect()
+        assertResult(4)(res.length)
+        assertResult("2262-04-11 16:47:16.854775")(res(0).get(1).toString)
+        assertResult("2262-04-11 16:47:16.854775")(res(1).get(1).toString)
+        assertResult("2023-12-31 23:59:59.0")(res(2).get(1).toString)
+        assertResult("2262-04-11 16:47:16.854775")(res(3).get(1).toString)
+
+        createDataPath(outputPath)
+      }
     }
   }
 }
