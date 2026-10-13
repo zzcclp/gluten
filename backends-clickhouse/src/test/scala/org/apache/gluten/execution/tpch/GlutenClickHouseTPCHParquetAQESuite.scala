@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.tpch
 
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConfig}
 import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
@@ -343,6 +343,206 @@ class GlutenClickHouseTPCHParquetAQESuite extends ParquetTPCHSuite {
       ).collect()
       // check no exception
       assert(result.length == 1)
+    }
+  }
+
+  test("window row_number") {
+    val sql =
+      """
+        |select row_number() over (partition by n_regionkey order by n_nationkey) as num from nation
+        |order by n_regionkey, n_nationkey, num
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("issue-3195 window row_number") {
+    val sql =
+      """
+        |select row_number() over (order by 1) as num, n_nationkey from nation
+        |order by num, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window row_number with same partition and order keys should not use aggregate topk") {
+    val sql =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_orderkey,
+        | l_returnflag,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_returnflag
+        | ORDER BY l_returnflag DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | rn
+        |FROM ranked
+        |WHERE rn <= 3
+        |ORDER BY l_returnflag DESC
+        |""".stripMargin
+
+    val sql1 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_orderkey, l_returnflag
+        | ORDER BY l_orderkey DESC, l_returnflag DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_orderkey DESC, l_returnflag DESC
+        |""".stripMargin
+
+    val sql2 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_orderkey
+        | ORDER BY l_orderkey DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_orderkey DESC, l_returnflag
+        |""".stripMargin
+
+    val sql3 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_commitdate,
+        | l_linestatus,
+        | l_returnflag,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_returnflag, l_linestatus
+        | ORDER BY l_returnflag DESC, l_linestatus DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_linestatus,
+        | l_commitdate,
+        | rn
+        |FROM ranked
+        |WHERE rn <= 3
+        |ORDER BY l_returnflag DESC, l_linestatus DESC, l_commitdate
+        |""".stripMargin
+
+    val sql4 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_orderkey,
+        | l_partkey,
+        | l_suppkey,
+        | l_linenumber,
+        | l_quantity,
+        | l_extendedprice,
+        | l_commitdate,
+        | l_shipinstruct,
+        | l_linestatus,
+        | l_returnflag,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_returnflag, l_linestatus, l_shipinstruct
+        | ORDER BY l_returnflag DESC, l_linestatus DESC, l_shipinstruct DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_linestatus,
+        | l_shipinstruct,
+        | l_orderkey,
+        | l_partkey,
+        | l_suppkey,
+        | l_linenumber,
+        | l_quantity,
+        | l_extendedprice,
+        | l_commitdate,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_returnflag DESC, l_linestatus DESC, l_shipinstruct DESC,
+        |l_orderkey, l_partkey, l_suppkey
+        |""".stripMargin
+
+    withSQLConf(
+      ("spark.sql.optimizer.windowGroupLimitThreshold", "-1"),
+      (CHConfig.runtimeSettings("enable_window_group_limit_to_aggregate"), "true"),
+      (CHConfig.runtimeSettings("window.aggregate_topk_high_cardinality_threshold"), "2.0")
+    ) {
+      runQueryAndCompare(sql, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql1) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql2, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql3, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql4, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
     }
   }
 }

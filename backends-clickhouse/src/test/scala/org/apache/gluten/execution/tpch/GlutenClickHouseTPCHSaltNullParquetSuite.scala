@@ -577,12 +577,155 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
         |ORDER BY l_returnflag DESC
         |""".stripMargin
 
+    val sql1 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_orderkey, l_returnflag
+        | ORDER BY l_orderkey DESC, l_returnflag DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_orderkey DESC, l_returnflag DESC
+        |""".stripMargin
+
+    val sql2 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_orderkey
+        | ORDER BY l_orderkey DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_orderkey,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_orderkey DESC, l_returnflag
+        |""".stripMargin
+
+    val sql3 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_commitdate,
+        | l_linestatus,
+        | l_returnflag,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_returnflag, l_linestatus
+        | ORDER BY l_returnflag DESC, l_linestatus DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_linestatus,
+        | l_commitdate,
+        | rn
+        |FROM ranked
+        |WHERE rn <= 3
+        |ORDER BY l_returnflag DESC, l_linestatus DESC, l_commitdate
+        |""".stripMargin
+
+    val sql4 =
+      """
+        |WITH ranked AS (
+        | SELECT
+        | l_orderkey,
+        | l_partkey,
+        | l_suppkey,
+        | l_linenumber,
+        | l_quantity,
+        | l_extendedprice,
+        | l_commitdate,
+        | l_shipinstruct,
+        | l_linestatus,
+        | l_returnflag,
+        | ROW_NUMBER() OVER (
+        | PARTITION BY l_returnflag, l_linestatus, l_shipinstruct
+        | ORDER BY l_returnflag DESC, l_linestatus DESC, l_shipinstruct DESC
+        | ) AS rn
+        | FROM lineitem
+        | WHERE l_orderkey > 1000
+        |)
+        |
+        |SELECT
+        | l_returnflag,
+        | l_linestatus,
+        | l_shipinstruct,
+        | l_orderkey,
+        | l_partkey,
+        | l_suppkey,
+        | l_linenumber,
+        | l_quantity,
+        | l_extendedprice,
+        | l_commitdate,
+        | rn
+        |FROM ranked
+        |WHERE rn = 1
+        |ORDER BY l_returnflag DESC, l_linestatus DESC, l_shipinstruct DESC,
+        |l_orderkey, l_partkey, l_suppkey
+        |""".stripMargin
+
     withSQLConf(
       ("spark.sql.optimizer.windowGroupLimitThreshold", "-1"),
       (CHConfig.runtimeSettings("enable_window_group_limit_to_aggregate"), "true"),
       (CHConfig.runtimeSettings("window.aggregate_topk_high_cardinality_threshold"), "2.0")
     ) {
-      runQueryAndCompare(sql, compareResult = false) {
+      runQueryAndCompare(sql, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql1) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql2, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql3, false) {
+        df =>
+          val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
+            case e: CHAggregateGroupLimitExecTransformer => e
+          }
+          assert(aggregateTopK.isEmpty)
+      }
+
+      runQueryAndCompare(sql4, false) {
         df =>
           val aggregateTopK = collectWithSubqueries(df.queryExecution.executedPlan) {
             case e: CHAggregateGroupLimitExecTransformer => e
