@@ -147,7 +147,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         getRootFilePaths,
         getProperties,
         sparkContext.hadoopConfiguration,
-        getDistinctPartitionReadFileFormats
+        // avoid error: Cannot evaluate expression: scalar-subquery
+        Set.empty[ReadFileFormat]
       )
     if (!validationResult.ok()) {
       return validationResult

@@ -1733,4 +1733,28 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
+  test(
+    "Fix issue 'Cannot evaluate expression: scalar-subquery' " +
+      "or 'requirement failed: Subquery scalar-subquery#'") {
+    val sql =
+      s"""
+         | select sum(int_field * 2L),
+         |        min(float_field / 2),
+         |        max(double_field * 0.03),
+         |        sum(short_field * 2),
+         |        sum(decimal_field * 3L)
+         | from $json_table_name
+         | where day = '2023-06-06' or day = (select max(day) from $json_table_name)
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      df => {
+        val jsonFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(jsonFileScan.size == 1)
+      }
+    )
+  }
 }
