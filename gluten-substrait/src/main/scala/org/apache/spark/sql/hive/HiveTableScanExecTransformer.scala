@@ -26,7 +26,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, HiveTableRelation}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ExecSubqueryExpression, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.client.HiveClientImpl
@@ -89,14 +89,18 @@ case class HiveTableScanExecTransformer(
     var hasTableFormatPartitions = false
     val formatCache =
       collection.mutable.Map[(Class[_ <: InputFormat[_, _]], Option[String]), ReadFileFormat]()
-    basePrunedPartitions.foreach {
-      partition =>
-        val cls = partition.getInputFormatClass
-        if (cls == tableInputFormatClass) {
-          hasTableFormatPartitions = true
-        } else {
-          getReadFileFormatFromCache(cls, partition, formatCache)
-        }
+    if (
+      partitionPruningPred.forall(f => f.deterministic && !ExecSubqueryExpression.hasSubquery(f))
+    ) {
+      basePrunedPartitions.foreach {
+        partition =>
+          val cls = partition.getInputFormatClass
+          if (cls == tableInputFormatClass) {
+            hasTableFormatPartitions = true
+          } else {
+            getReadFileFormatFromCache(cls, partition, formatCache)
+          }
+      }
     }
     val otherFormats = formatCache.values.toSet
     if (otherFormats.isEmpty) {
