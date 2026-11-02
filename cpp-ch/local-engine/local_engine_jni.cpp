@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "config.h"
+
 #include <numeric>
 #include <string>
 #include <jni.h>
@@ -193,6 +195,20 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeSessionally();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+/// Reports which HDFS backend the native library was compiled with.
+JNIEXPORT jstring Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_getHdfsBackend(JNIEnv * env, jclass)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+#if USE_HDFS && USE_LIBHDFS_JNI
+    return local_engine::charTojstring(env, "Hadoop libhdfs (JNI)");
+#elif USE_HDFS && USE_LIBHDFS3
+    return local_engine::charTojstring(env, "Bundled libhdfs3 (native)");
+#else
+    return local_engine::charTojstring(env, "none");
+#endif
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)

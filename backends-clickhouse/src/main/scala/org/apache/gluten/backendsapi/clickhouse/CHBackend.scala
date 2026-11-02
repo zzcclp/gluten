@@ -175,6 +175,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_ENABLE_WINDOW_GROUP_LIMIT_TO_AGGREGATE: String =
     CHConfig.prefixOf("runtime_settings.enable_window_group_limit_to_aggregate")
 
+  val GLUTEN_CLICKHOUSE_HDFS_BACKEND_KEY = "spark.gluten.component.ch_hdfs_backend"
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(

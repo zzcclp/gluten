@@ -22,7 +22,7 @@
 #include <Storages/ObjectStorage/HDFS/WriteBufferFromHDFS.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #if USE_HDFS
-#include <hdfs/hdfs.h>
+#include <Storages/ObjectStorage/HDFS/HDFSBackendCompat.h>
 #endif
 #include <Poco/URI.h>
 #include <Common/CHUtil.h>

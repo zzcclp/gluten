@@ -25,7 +25,7 @@ import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.kerberos.KerberosTicketRefreshAssist
-import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
+import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, ExpressionEvaluatorJniWrapper}
 
 import org.apache.spark.{SPARK_VERSION, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
@@ -88,6 +88,10 @@ class CHListenerApi extends ListenerApi with Logging {
       val executorLibPath = conf.get(GlutenConfig.GLUTEN_EXECUTOR_LIB_PATH.key, libPath)
       JniLibLoader.loadFromPath(executorLibPath)
     }
+    // Must be called after the native library is loaded.
+    val hdfsBackend = ExpressionEvaluatorJniWrapper.getHdfsBackend
+    logInfo(s"ClickHouse HDFS backend: $hdfsBackend")
+    conf.set(CHBackendSettings.GLUTEN_CLICKHOUSE_HDFS_BACKEND_KEY, hdfsBackend)
     CHListenerApi.addShutdownHook
     // Add configs
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._

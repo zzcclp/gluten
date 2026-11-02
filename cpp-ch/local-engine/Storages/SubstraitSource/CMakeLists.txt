@@ -24,7 +24,7 @@ add_library(substrait_source ${substrait_source_sources})
 target_compile_options(
   substrait_source PRIVATE -Wno-suggest-destructor-override
                            -Wno-inconsistent-missing-destructor-override)
-if(ENABLE_HDFS)
+if(TARGET ch_contrib::hdfs)
   target_link_libraries(
     substrait_source
     PUBLIC boost::headers_only

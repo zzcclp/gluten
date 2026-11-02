@@ -66,7 +66,7 @@
 #endif
 
 #if USE_HDFS
-#include <hdfs/hdfs.h>
+#include <Storages/ObjectStorage/HDFS/HDFSBackendCompat.h>
 #endif
 
 namespace DB

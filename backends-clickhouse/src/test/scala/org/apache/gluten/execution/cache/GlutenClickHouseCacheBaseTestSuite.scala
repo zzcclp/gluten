@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.cache
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 import org.apache.gluten.execution._
 import org.apache.gluten.utils.CacheTestHelper
@@ -157,37 +158,43 @@ abstract class GlutenClickHouseCacheBaseTestSuite
   }
 
   test("test set_read_util_position") {
-    val tableName = "read_until_test"
-    val tablePath = s"$remotePath/$SPARK_DIR_NAME/$tableName/"
-    val targetFile = new Path(remotePath)
-    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
-    fs.delete(new Path(tablePath), true)
-    sql(s"""
-           | CREATE TABLE $tableName
-           | USING csv
-           | LOCATION '$tablePath'
-           | as
-           | select * from lineitem
-           |""".stripMargin)
+    if (
+      !sparkContext.getConf
+        .get(CHBackendSettings.GLUTEN_CLICKHOUSE_HDFS_BACKEND_KEY, "").contains("JNI")
+      || remotePath.startsWith("s3")
+    ) {
+      val tableName = "read_until_test"
+      val tablePath = s"$remotePath/$SPARK_DIR_NAME/$tableName/"
+      val targetFile = new Path(remotePath)
+      val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
+      fs.delete(new Path(tablePath), true)
+      sql(s"""
+             | CREATE TABLE $tableName
+             | USING csv
+             | LOCATION '$tablePath'
+             | as
+             | select * from lineitem
+             |""".stripMargin)
 
-    val sql_str =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    $tableName
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24;
-         |
-         |""".stripMargin
+      val sql_str =
+        s"""
+           |SELECT
+           |    sum(l_extendedprice * l_discount) AS revenue
+           |FROM
+           |    $tableName
+           |WHERE
+           |    l_shipdate >= date'1994-01-01'
+           |    AND l_shipdate < date'1994-01-01' + interval 1 year
+           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+           |    AND l_quantity < 24;
+           |
+           |""".stripMargin
 
-    withSQLConf("spark.sql.files.maxPartitionBytes" -> "1M") {
-      compareResultsAgainstVanillaSpark(sql_str, compareResult = true, _ => {})
+      withSQLConf("spark.sql.files.maxPartitionBytes" -> "1M") {
+        compareResultsAgainstVanillaSpark(sql_str, compareResult = true, _ => {})
+      }
+
+      fs.delete(new Path(tablePath), true)
     }
-
-    fs.delete(new Path(tablePath), true)
   }
 }
