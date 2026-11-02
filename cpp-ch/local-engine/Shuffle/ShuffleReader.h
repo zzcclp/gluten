@@ -21,6 +21,7 @@
 #include <IO/ReadBuffer.h>
 #include <Storages/IO/NativeReader.h>
 #include <Common/BlockIterator.h>
+#include <Common/JNIUtils.h>
 
 namespace DB
 {
@@ -64,15 +65,28 @@ private:
     bool nextImpl() override;
 };
 
+/// Reads a Java byte[] by chunks.
+/// The array is promoted to a global reference at construction, because the buffer is consumed by
+/// the worker thread created in BroadcastJoinBuilder::buildJoin, while a JNI local reference is
+/// only valid in the thread (and the frame) that created it.
 class ReadBufferFromByteArray final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
 {
 public:
-    ReadBufferFromByteArray(const jbyteArray array_, size_t array_size_)
-        : DB::BufferWithOwnMemory<DB::ReadBuffer>(std::min<size_t>(DB::DBMS_DEFAULT_BUFFER_SIZE, array_size_))
-        , array(array_)
+    ReadBufferFromByteArray(JNIEnv * env, jbyteArray array_, size_t array_size_)
+        : DB::BufferWithOwnMemory<DB::ReadBuffer>(std::min<size_t>(4 * DB::DBMS_DEFAULT_BUFFER_SIZE, array_size_))
+        , array(env ? static_cast<jbyteArray>(env->NewGlobalRef(array_)) : nullptr)
         , array_size(array_size_)
         , read_pos(0)
     {
+    }
+
+    ~ReadBufferFromByteArray() override
+    {
+        if (!array)
+            return;
+        ScopedJniEnv scoped_env;
+        if (scoped_env)
+            scoped_env->DeleteGlobalRef(array);
     }
 
 private:

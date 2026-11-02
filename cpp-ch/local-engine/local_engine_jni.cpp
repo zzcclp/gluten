@@ -1150,13 +1150,19 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     jboolean has_null_key_values)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    if (in == nullptr || named_struct == nullptr)
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "nativeBuild: serialized right table and named struct must not be null");
+
     const auto hash_table_id = jstring2string(env, key);
     const auto join_key = jstring2string(env, join_key_);
     const auto named_struct_a = local_engine::getByteArrayElementsSafe(env, named_struct);
     const std::string::size_type struct_size = named_struct_a.length();
     std::string struct_string{reinterpret_cast<const char *>(named_struct_a.elems()), struct_size};
     const jsize length = env->GetArrayLength(in);
-    local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
+    /// `ReadBufferFromByteArray` promotes the array to a global reference internally, since the
+    /// buffer is consumed by the worker thread created in `BroadcastJoinBuilder::buildJoin`.
+    local_engine::ReadBufferFromByteArray read_buffer_from_java_array(env, in, static_cast<size_t>(length));
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
     const auto * obj = make_wrapper(local_engine::BroadcastJoinBuilder::buildJoin(

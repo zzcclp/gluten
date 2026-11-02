@@ -75,10 +75,13 @@ bool ReadBufferFromJavaShuffleInputStream::nextImpl()
 
 int ReadBufferFromJavaShuffleInputStream::readFromJava() const
 {
-    GET_JNIENV(env)
+    ScopedJniEnv scoped_env;
+    JNIEnv * env = scoped_env.get();
+    if (env == nullptr)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBufferFromJavaShuffleInputStream: the JVM is not attached");
+
     jint count = safeCallIntMethod(
         env, java_in, ShuffleReader::shuffle_input_stream_read, reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
-    CLEAN_JNIENV
     return count;
 }
 
@@ -98,12 +101,19 @@ bool ReadBufferFromByteArray::nextImpl()
     if (read_pos >= array_size)
         return false;
 
-    GET_JNIENV(env)
+    ScopedJniEnv scoped_env;
+    JNIEnv * env = scoped_env.get();
+    if (env == nullptr)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBufferFromByteArray: the JVM is not attached");
+
     const size_t read_size = std::min(internal_buffer.size(), array_size - read_pos);
     env->GetByteArrayRegion(array, read_pos, read_size, reinterpret_cast<jbyte *>(internal_buffer.begin()));
+    /// GetByteArrayRegion can fail with a pending Java exception (e.g. OutOfMemoryError).
+    /// Silently ignoring it would make us parse a truncated buffer and build a wrong hash table.
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
+
     working_buffer.resize(read_size);
     read_pos += read_size;
-    CLEAN_JNIENV
     return true;
 }
 }

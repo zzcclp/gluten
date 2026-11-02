@@ -176,7 +176,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
 
     substrait::NamedStruct substrait_struct;
-    substrait_struct.ParseFromString(named_struct);
+    substrait_struct.ParseFromArray(named_struct.data(), static_cast<int>(named_struct.size()));
     Block header = TypeParser::buildBlockFromNamedStruct(substrait_struct);
     header = resetBuildTableBlockName(header);
 
@@ -187,6 +187,11 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     Blocks data;
     auto collect_data = [&]()
     {
+        /// This lambda runs on a freshly created thread (see below), attach it to the JVM once for
+        /// the whole build. Otherwise ReadBufferFromByteArray::nextImpl would attach/detach the
+        /// thread once per read chunk.
+        ScopedJniEnv scoped_env;
+
         NativeReader block_stream(input);
         if (only_one_column)
             collectBlocksForCountingRows(block_stream, header, data);

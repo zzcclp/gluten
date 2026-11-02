@@ -303,13 +303,20 @@ bool ReadBufferFromJavaInputStream::nextImpl()
 
 int ReadBufferFromJavaInputStream::readFromJava() const
 {
-    GET_JNIENV(env)
+    ScopedJniEnv scoped_env;
+    JNIEnv * env = scoped_env.get();
+    if (env == nullptr)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBufferFromJavaInputStream: the JVM is not attached");
+
     jint count = safeCallIntMethod(env, input_stream, input_stream_read, buffer);
 
     if (count > 0)
+    {
         env->GetByteArrayRegion(buffer, 0, count, reinterpret_cast<jbyte *>(internal_buffer.begin()));
+        /// GetByteArrayRegion can fail with a pending Java exception, don't parse a truncated buffer silently.
+        LOCAL_ENGINE_JNI_JMETHOD_END(env)
+    }
 
-    CLEAN_JNIENV
     return count;
 }
 

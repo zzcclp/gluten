@@ -39,4 +39,31 @@ public:
         JNIUtils::detachCurrentThread(); \
     }
 
+/// RAII wrapper of JNIUtils::getENV: attaches the current thread to the JVM if needed and
+/// detaches it on destruction, including the exception paths. If the thread is already attached
+/// (e.g. the JNI calling thread), it does nothing.
+class ScopedJniEnv
+{
+public:
+    ScopedJniEnv() { env = JNIUtils::getENV(&attached); }
+    ~ScopedJniEnv()
+    {
+        if (attached)
+            JNIUtils::detachCurrentThread();
+    }
+
+    ScopedJniEnv(const ScopedJniEnv &) = delete;
+    ScopedJniEnv & operator=(const ScopedJniEnv &) = delete;
+
+    JNIEnv * get() const { return env; }
+    JNIEnv * operator->() const { return env; }
+    explicit operator bool() const { return env != nullptr; }
+
+private:
+    /// `attached` must be assigned in the constructor body (not in the member init list),
+    /// otherwise it would be overwritten by the default initializer after `getENV` writes to it.
+    int attached = 0;
+    JNIEnv * env = nullptr;
+};
+
 }
