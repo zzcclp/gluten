@@ -28,6 +28,15 @@ message("CH_BRANCH=${CH_BRANCH}")
 message("CH_COMMIT=${CH_COMMIT}")
 
 project(libch LANGUAGES C CXX ASM)
+
+# Options forwarded to the inner ClickHouse build.
+set(HDFS_BACKEND "libhdfs3" CACHE STRING "HDFS client backend: libhdfs3 or jni")
+set(HADOOP_HOME "$ENV{HADOOP_HOME}" CACHE PATH "Hadoop installation prefix")
+set(_hdfs_backend_flags "-DHDFS_BACKEND=${HDFS_BACKEND}")
+if(HADOOP_HOME)
+  string(APPEND _hdfs_backend_flags " -DHADOOP_HOME=${HADOOP_HOME}")
+endif()
+
 file(GLOB clickhouse_files "${CH_SOURCE_DIR}/*")
 if("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
   if(NOT clickhouse_files)
@@ -91,7 +100,8 @@ if(ENABLE_CPP_TEST)
     COMMAND
       bash -c \"cmake -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DNO_ARMV81_OR_HIGHER=1
-      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DENABLE_PROTOBUF=ON
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${_hdfs_backend_flags}
+      -DENABLE_PROTOBUF=ON
       -DENABLE_TESTS=ON -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON
       -DENABLE_EXTERN_LOCAL_ENGINE=ON -DCOMPILER_FLAGS='-fvisibility=hidden
       -fvisibility-inlines-hidden' -S ${CH_SOURCE_DIR} -G Ninja -B
@@ -104,7 +114,8 @@ else()
     COMMAND
       bash -c \"cmake -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DNO_ARMV81_OR_HIGHER=1
-      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DENABLE_PROTOBUF=ON
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${_hdfs_backend_flags}
+      -DENABLE_PROTOBUF=ON
       -DENABLE_TESTS=OFF -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON
       -DENABLE_EXTERN_LOCAL_ENGINE=ON -DENABLE_CAPNP=OFF -DENABLE_GRPC=OFF
       -DENABLE_RUST=OFF -DENABLE_H3=OFF -DENABLE_AMQPCPP=OFF
